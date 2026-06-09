@@ -1,7 +1,7 @@
 # ANTS Architecture Document
 
 > **Status**: Canonical Reference — All development decisions must align with this document.
-> **Last Updated**: 2025-06
+> **Last Updated**: 2026-06
 > **Version**: 1.0-draft
 
 ---
@@ -22,7 +22,7 @@
 
 ## 1. Project Overview
 
-**ANTS** (Agent Network Task System) is a multi-agent orchestration and project management system designed to serve as the core runtime for **ANT**, a highly private, offline-first AI assistant being collaboratively built with Johnathan.
+**ANTS** (Autonomous Networked Task System) is a multi-agent orchestration and project management system designed to serve as the core runtime for **ANT**, a highly private, offline-first AI assistant being collaboratively built with Johnathan.
 
 ### Core Principles
 
@@ -32,19 +32,6 @@
 - **Conversational Agents**: Agents converse — they engage in multi-turn dialogue, not fire-and-forget delegation. This is a foundational design choice that shapes the entire architecture.
 - **Extensible from Day One**: Agent registries, tool registries, and the provider abstraction layer are present from v1, enabling future extension without architectural overhaul.
 
-### Target Hardware
-
-The primary deployment target is a **Mac Studio M5 with 128GB unified memory** (~£4K budget), expected later in 2026. This provides:
-
-- Sufficient RAM to load large models (Qwen3-35B-A3B) entirely in memory
-- Apple Silicon Metal acceleration for inference
-- A single-machine deployment model — no cluster, no cloud, no external dependencies
-
-**Risk**: DRAM shortages may limit 128GB config availability. Alternatives include current-gen Mac Studio, used/refurbished units, or PC builds (though AMD GPU inference is currently unsupported, forcing CPU-only speeds).
-
-### Relationship to ANT
-
-ANTS is the orchestration engine. ANT is the AI assistant persona that runs on top of it. ANTS provides the agent framework, conversation management, and tool infrastructure. ANT is the product that end-users (starting with Johnathan) interact with through whatever client connects to the ANTS API.
 
 ---
 
@@ -151,21 +138,20 @@ Each agent interaction is a **mini-conversation** — a sub-thread within a Run:
 sequenceDiagram
     participant U as User
     participant O as T1: Orchestrator
-    participant S as T2: Research Agent
-    participant T as T3: Web Search Agent
+    participant R as T3: Research Agent
     
     U->>O: "Research quantum computing advances"
-    O->>S: Delegate research task
-    S->>T: Search for "quantum computing 2025"
-    T-->>S: Results: [5 articles]
-    S->>T: Search for "quantum error correction breakthroughs"
-    T-->>S: Results: [3 articles]
-    S->>S: Synthesize findings (multi-turn)
-    S-->>O: Research complete, here's the analysis
+    O->>R: Delegate research task
+    R->>R: Call web_search tool: "quantum computing 2026"
+    R-->>R: Results: [5 articles]
+    R->>R: Call web_search tool: "quantum error correction breakthroughs"
+    R-->>R: Results: [3 articles]
+    R->>R: Synthesize findings (multi-turn)
+    R-->>O: Research complete, here's the analysis
     O-->>U: Here's what I found about quantum computing...
 ```
 
-Notice: the research agent (T2) has a multi-turn conversation with the web search agent (T3). It makes multiple queries, evaluates results, and decides when it has enough information. This is fundamentally different from a single function call.
+Notice: the research agent (T3) uses the web_search tool within its own multi-turn conversation. It makes multiple tool calls, evaluates results, and decides when it has enough information. Since T3 task agents cannot delegate to other agents, they perform their own work using available tools. This is fundamentally different from a single function call — the agent reasons over multiple turns, deciding what to search for next based on previous results.
 
 ### Sub-Thread Model
 
@@ -175,11 +161,11 @@ Every agent interaction creates a sub-thread within the parent Run:
 Thread (user conversation)
 └── Run (orchestrator execution)
     ├── RunStep: Orchestrator routes to Research Agent
-    │   └── Sub-Thread (research conversation)
-    │       ├── Message: Research Agent receives task
-    │       ├── Message: Research Agent asks web search for results
-    │       ├── Message: Web search returns results
-    │       ├── Message: Research Agent synthesizes and responds
+    │   └── Run (research agent execution)
+    │       ├── RunStep: Research Agent receives task
+    │       ├── RunStep: Research Agent calls web_search tool ("quantum computing 2026")
+    │       ├── RunStep: Research Agent calls web_search tool ("quantum error correction")
+    │       ├── RunStep: Research Agent synthesizes and responds
     │       └── Run complete
     └── RunStep: Orchestrator composes final response
 ```
@@ -200,6 +186,7 @@ erDiagram
     User ||--o{ Thread : "owns"
     Thread ||--o{ Message : "contains"
     Thread ||--o{ Run : "has"
+    Message }o--o| AgentType : "written by"
     Run }o--|| AgentType : "executed by"
     Run ||--o{ RunStep : "consists of"
     Run }o--|| Run : "sub-run of"
@@ -240,6 +227,7 @@ erDiagram
         uuid thread_id FK
         string role "user | assistant | system"
         text content
+        uuid agent_type_id FK "nullable, which agent wrote this"
         jsonb metadata
         timestamp created_at
     }
@@ -316,6 +304,14 @@ erDiagram
 **JSONB Metadata**: Thread, Message, and Run all have `metadata` fields for extensibility without schema changes. This is intentional — we know the model will evolve.
 
 **Row-Level Security**: Every query is scoped by `user_id`. Users can only see their own threads, messages, and runs. This is enforced at the Drizzle query layer, not just at the API level.
+
+**Agent Attribution on Messages**: The `agent_type_id` field on `Message` is a nullable foreign key referencing `AgentType`. For assistant messages, it identifies which agent type produced the message. For user and system messages, it is null since these are not agent-authored. This enables tracking which agent said what in multi-agent conversations, without which it would be impossible to attribute responses in sub-thread dialogue.
+
+**Run Status `awaiting_response`**: When a Run's status is `awaiting_response`, it means the agent has delegated work to a sub-agent and is waiting for that sub-agent's Run to complete. The parent Run remains in `awaiting_response` until the sub-run reaches a terminal state (completed, failed, or cancelled). This is distinct from `in_progress`, which indicates the agent is actively processing within its own turn.
+
+**Sub-Thread Implementation**: Sub-threads are NOT separate Thread entities. They are represented by the Run tree via `parent_run_id`. When a T1 orchestrator or T2 specialist delegates to another agent, a new Run is created with `parent_run_id` pointing to the delegator's Run. All messages in a sub-thread conversation share the same `thread_id` (the user's original thread) but are associated with specific Runs via RunStep. The Run tree structure provides isolation and hierarchy — each Run knows its parent and children — while the shared thread_id keeps all messages in the same conversation context for the user. This avoids the complexity of separate Thread entities for every delegation.
+
+**Tier Delegation Constraints**: The `AgentType` self-referencing relationship enforces strict delegation rules based on tier: T1 (Orchestrator) can delegate to T2 (Specialist) or T3 (Task Agent). T2 (Specialist) can delegate to T3 (Task Agent) only. T3 (Task Agent) cannot delegate to any other agent — it is always a leaf node. These constraints are enforced at the application layer when creating sub-Runs. A delegation that violates these rules is rejected with an appropriate error.
 
 ---
 
@@ -502,7 +498,7 @@ V1 establishes the foundational architecture. Everything built here must support
 | Feature | Details |
 |---------|---------|
 | **Orchestrator Agent (T1)** | Routes user requests, coordinates specialist agents, maintains conversation context |
-| **Research Agent (T2)** | Single specialist that performs research using web search |
+| **Research Agent (T3)** | Single task agent that performs research using web search |
 | **Web Search Tool** | Single tool implementation — calls web search, returns results |
 | **Multi-User Auth** | API key creation, validation, per-user data isolation |
 | **Thread/Message/Run/Step** | Core data model fully implemented |
@@ -592,7 +588,7 @@ ants/
 │   │   └── app.ts                 # Hono app assembly
 │   ├── agents/
 │   │   ├── orchestrator.ts        # T1 orchestrator agent
-│   │   ├── research.ts            # T2 research specialist
+│   │   ├── research.ts            # T3 research task agent
 │   │   ├── base-agent.ts          # Abstract base agent class
 │   │   └── registry.ts            # Agent type registry
 │   ├── models/
@@ -681,7 +677,7 @@ ants/
 
 | Term | Definition |
 |------|-----------|
-| **ANTS** | Agent Network Task System — the orchestration engine |
+| **ANTS** | Autonomous Networked Task System — the orchestration engine |
 | **ANT** | The AI assistant persona built on ANTS |
 | **Thread** | A conversation container belonging to a user |
 | **Run** | An execution of an agent on a thread |
