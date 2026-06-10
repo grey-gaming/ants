@@ -1,0 +1,23 @@
+/threads/{id}/activity:
+  get:
+    tags: [Activity]
+    operationId: getThreadActivity
+    summary: Full activity trace for a thread (delegation tree)
+    description: |
+      Returns the complete Run tree with parent_run_id relationships,
+      which agent called which, tool calls, and results.
+      Convenience endpoint that builds the delegation tree so you can
+      investigate any chat session.
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+    responses:
+      '200':
+        description: Activity trace with delegation tree
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/sse-events.yaml#/ActivityTrace'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
