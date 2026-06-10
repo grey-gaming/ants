@@ -1,0 +1,67 @@
+/threads/{id}/messages:
+  post:
+    tags: [Messages]
+    operationId: createMessage
+    summary: Create a message in a thread
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/message.yaml#/MessageCreate'
+    responses:
+      '201':
+        description: Message created
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/message.yaml#/Message'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  get:
+    tags: [Messages]
+    operationId: listMessages
+    summary: List messages in a thread
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/After'
+      - $ref: '../parameters.yaml#/Before'
+      - $ref: '../parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: List of messages
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/message.yaml#/MessageListResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+
+/threads/{id}/messages/{mid}:
+  get:
+    tags: [Messages]
+    operationId: getMessage
+    summary: Get a specific message
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/MessageId'
+    responses:
+      '200':
+        description: Message details
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/message.yaml#/Message'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
