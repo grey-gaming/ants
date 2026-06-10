@@ -1,0 +1,90 @@
+/threads/{id}/runs:
+  post:
+    tags: [Runs]
+    operationId: createRun
+    summary: Create a run (starts agent execution)
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/run.yaml#/RunCreate'
+    responses:
+      '201':
+        description: Run created
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/run.yaml#/Run'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  get:
+    tags: [Runs]
+    operationId: listRuns
+    summary: List runs for a thread
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/After'
+      - $ref: '../parameters.yaml#/Before'
+      - $ref: '../parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: List of runs
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/run.yaml#/RunListResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+
+/threads/{id}/runs/{rid}:
+  get:
+    tags: [Runs]
+    operationId: getRun
+    summary: Get run status and detail
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/RunId'
+    responses:
+      '200':
+        description: Run details
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/run.yaml#/Run'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+
+/threads/{id}/runs/{rid}/cancel:
+  post:
+    tags: [Runs]
+    operationId: cancelRun
+    summary: Cancel a running run
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/RunId'
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Run cancelled
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/run.yaml#/Run'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+      '409':
+        $ref: '../responses.yaml#/Conflict'
