@@ -1,0 +1,1646 @@
+openapi: 3.1.0
+info:
+  title: ANTS API
+  description: |
+    Autonomous Networked Task System (ANTS) — API-first multi-agent orchestration.
+    OpenAI-inspired but custom. All mutations accept Idempotency-Key header.
+    All list endpoints use cursor-based pagination.
+  version: 1.0.0
+  contact:
+    name: ANTS
+    url: https://github.com/grey-gaming/ants
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000/v1
+    description: Local development
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Threads
+    description: Conversation containers
+  - name: Messages
+    description: Messages within threads
+  - name: Runs
+    description: Agent execution units
+  - name: Run Steps
+    description: Individual steps within a run
+  - name: Activity
+    description: Delegation tree observability
+  - name: Agents
+    description: Agent type registry
+  - name: Tools
+    description: Tool registry
+  - name: Settings
+    description: Key-value configuration
+  - name: Auth
+    description: API key management
+  - name: Health
+    description: System health and queue status
+
+paths:
+  /threads:
+    post:
+      tags: [Threads]
+      operationId: createThread
+      summary: Create a thread
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ThreadCreate'
+      responses:
+        '201':
+          description: Thread created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thread'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [Threads]
+      operationId: listThreads
+      summary: List threads
+      parameters:
+        - $ref: '#/components/parameters/After'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of threads
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /threads/{id}:
+    get:
+      tags: [Threads]
+      operationId: getThread
+      summary: Get a thread
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+      responses:
+        '200':
+          description: Thread details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thread'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Threads]
+      operationId: updateThread
+      summary: Update a thread
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ThreadUpdate'
+      responses:
+        '200':
+          description: Thread updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thread'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Threads]
+      operationId: deleteThread
+      summary: Delete a thread
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+      responses:
+        '204':
+          description: Thread deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /threads/{id}/messages:
+    post:
+      tags: [Messages]
+      operationId: createMessage
+      summary: Create a message in a thread
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+      responses:
+        '201':
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      tags: [Messages]
+      operationId: listMessages
+      summary: List messages in a thread
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/After'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /threads/{id}/messages/{mid}:
+    get:
+      tags: [Messages]
+      operationId: getMessage
+      summary: Get a specific message
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Message details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /threads/{id}/runs:
+    post:
+      tags: [Runs]
+      operationId: createRun
+      summary: Create a run (starts agent execution)
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunCreate'
+      responses:
+        '201':
+          description: Run created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      tags: [Runs]
+      operationId: listRuns
+      summary: List runs for a thread
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/After'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of runs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /threads/{id}/runs/{rid}:
+    get:
+      tags: [Runs]
+      operationId: getRun
+      summary: Get run status and detail
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Run details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /threads/{id}/runs/{rid}/cancel:
+    post:
+      tags: [Runs]
+      operationId: cancelRun
+      summary: Cancel a running run
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Run cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /threads/{id}/runs/{rid}/stream:
+    get:
+      tags: [Runs]
+      operationId: streamRun
+      summary: SSE stream of run events
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: SSE stream of run events
+          content:
+            text/event-stream:
+              schema:
+                type: array
+                items:
+                  oneOf:
+                    - $ref: '#/components/schemas/RunCreatedEvent'
+                    - $ref: '#/components/schemas/RunStepCreatedEvent'
+                    - $ref: '#/components/schemas/RunStepCompletedEvent'
+                    - $ref: '#/components/schemas/MessageCreatedEvent'
+                    - $ref: '#/components/schemas/MessageDeltaEvent'
+                    - $ref: '#/components/schemas/MessageCompletedEvent'
+                    - $ref: '#/components/schemas/RunCompletedEvent'
+                    - $ref: '#/components/schemas/RunFailedEvent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /threads/{id}/runs/{rid}/steps:
+    get:
+      tags: [Run Steps]
+      operationId: listRunSteps
+      summary: List all steps in a run
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/After'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of run steps
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStepListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /threads/{id}/runs/{rid}/steps/{sid}:
+    get:
+      tags: [Run Steps]
+      operationId: getRunStep
+      summary: Get step detail
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/StepId'
+      responses:
+        '200':
+          description: Run step details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStep'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /threads/{id}/activity:
+    get:
+      tags: [Activity]
+      operationId: getThreadActivity
+      summary: Full activity trace for a thread (delegation tree)
+      description: |
+        Returns the complete Run tree with parent_run_id relationships,
+        which agent called which, tool calls, and results.
+        Convenience endpoint that builds the delegation tree so you can
+        investigate any chat session.
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+      responses:
+        '200':
+          description: Activity trace with delegation tree
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityTrace'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents:
+    post:
+      tags: [Agents]
+      operationId: createAgent
+      summary: Register an agent type
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentTypeCreate'
+      responses:
+        '201':
+          description: Agent type registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [Agents]
+      operationId: listAgents
+      summary: List agent types
+      parameters:
+        - $ref: '#/components/parameters/After'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of agent types
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentTypeListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /agents/{id}:
+    get:
+      tags: [Agents]
+      operationId: getAgent
+      summary: Get agent type detail (includes assigned tools)
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '200':
+          description: Agent type details with assigned tools
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Agents]
+      operationId: updateAgent
+      summary: Update agent type (including tool_ids for tool assignment)
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentTypeUpdate'
+      responses:
+        '200':
+          description: Agent type updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Agents]
+      operationId: deactivateAgent
+      summary: Deactivate an agent type
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '204':
+          description: Agent type deactivated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tools:
+    post:
+      tags: [Tools]
+      operationId: createTool
+      summary: Register a tool
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolCreate'
+      responses:
+        '201':
+          description: Tool registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [Tools]
+      operationId: listTools
+      summary: List tools
+      parameters:
+        - $ref: '#/components/parameters/After'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of tools
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /tools/{id}:
+    get:
+      tags: [Tools]
+      operationId: getTool
+      summary: Get tool detail
+      parameters:
+        - $ref: '#/components/parameters/ToolId'
+      responses:
+        '200':
+          description: Tool details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Tools]
+      operationId: updateTool
+      summary: Update a tool
+      parameters:
+        - $ref: '#/components/parameters/ToolId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolUpdate'
+      responses:
+        '200':
+          description: Tool updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Tools]
+      operationId: deactivateTool
+      summary: Deactivate a tool
+      parameters:
+        - $ref: '#/components/parameters/ToolId'
+      responses:
+        '204':
+          description: Tool deactivated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /settings:
+    get:
+      tags: [Settings]
+      operationId: getSettings
+      summary: Get all settings
+      responses:
+        '200':
+          description: All settings as key-value pairs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Settings]
+      operationId: updateSettings
+      summary: Update settings (partial update, key-value pairs)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsUpdate'
+      responses:
+        '200':
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /settings/{key}:
+    get:
+      tags: [Settings]
+      operationId: getSetting
+      summary: Get a specific setting
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Setting value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api-keys:
+    post:
+      tags: [Auth]
+      operationId: createApiKey
+      summary: Create an API key
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+      responses:
+        '201':
+          description: API key created (full key returned only once)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyWithSecret'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [Auth]
+      operationId: listApiKeys
+      summary: List API keys
+      responses:
+        '200':
+          description: List of API keys (keys are masked)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api-keys/{id}:
+    delete:
+      tags: [Auth]
+      operationId: revokeApiKey
+      summary: Revoke an API key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: API key revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /health:
+    get:
+      tags: [Health]
+      operationId: healthCheck
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: System health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /health/queue:
+    get:
+      tags: [Health]
+      operationId: queueStatus
+      summary: Queue status and concurrency info
+      responses:
+        '200':
+          description: Queue and concurrency status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: 'sk-...'
+      description: API key in Authorization header (Bearer sk-...)
+
+  parameters:
+    ThreadId:
+      name: id
+      in: path
+      required: true
+      description: Thread ID
+      schema:
+        type: string
+        format: uuid
+
+    MessageId:
+      name: mid
+      in: path
+      required: true
+      description: Message ID
+      schema:
+        type: string
+        format: uuid
+
+    RunId:
+      name: rid
+      in: path
+      required: true
+      description: Run ID
+      schema:
+        type: string
+        format: uuid
+
+    StepId:
+      name: sid
+      in: path
+      required: true
+      description: Run Step ID
+      schema:
+        type: string
+        format: uuid
+
+    AgentId:
+      name: id
+      in: path
+      required: true
+      description: Agent Type ID
+      schema:
+        type: string
+        format: uuid
+
+    ToolId:
+      name: id
+      in: path
+      required: true
+      description: Tool ID
+      schema:
+        type: string
+        format: uuid
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: Unique key to prevent duplicate mutations
+      schema:
+        type: string
+
+    After:
+      name: after
+      in: query
+      description: Cursor for forward pagination
+      schema:
+        type: string
+
+    Before:
+      name: before
+      in: query
+      description: Cursor for backward pagination
+      schema:
+        type: string
+
+    Limit:
+      name: limit
+      in: query
+      description: Maximum items to return
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Conflict:
+      description: Conflict (e.g., cannot cancel completed run)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: object
+              additionalProperties: true
+              description: Additional error context
+
+    Pagination:
+      type: object
+      properties:
+        after:
+          type: string
+          nullable: true
+          description: Cursor for next page
+        before:
+          type: string
+          nullable: true
+          description: Cursor for previous page
+
+    Thread:
+      type: object
+      required: [id, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ThreadCreate:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    ThreadUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    ThreadListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Thread'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Message:
+      type: object
+      required: [id, thread_id, role, content, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        thread_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+        agent_type_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Which agent wrote this (null for user/system messages)
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    MessageCreate:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    MessageListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    RunStatus:
+      type: string
+      enum: [queued, in_progress, awaiting_response, completed, failed, cancelled]
+
+    Run:
+      type: object
+      required: [id, thread_id, agent_type_id, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        thread_id:
+          type: string
+          format: uuid
+        agent_type_id:
+          type: string
+          format: uuid
+        parent_run_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Non-null for sub-runs (delegated by another agent)
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        model_config:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: Model settings (model, temperature, etc.)
+        usage:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: Token usage counts
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    RunCreate:
+      type: object
+      required: [agent_type_id]
+      properties:
+        agent_type_id:
+          type: string
+          format: uuid
+        model_config:
+          type: object
+          additionalProperties: true
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    RunListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Run'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    RunStepType:
+      type: string
+      enum: [message_creation, tool_call, agent_delegation, reasoning]
+
+    RunStepStatus:
+      type: string
+      enum: [in_progress, completed, failed]
+
+    RunStep:
+      type: object
+      required: [id, run_id, type, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/RunStepType'
+        status:
+          $ref: '#/components/schemas/RunStepStatus'
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: Type-specific details (message, tool call, delegation target, etc.)
+        tool_call:
+          $ref: '#/components/schemas/ToolCall'
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    RunStepListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunStep'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    ToolCall:
+      type: object
+      required: [id, name, arguments, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tool_id:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        arguments:
+          type: object
+          additionalProperties: true
+        result:
+          description: Tool execution result
+          nullable: true
+        status:
+          type: string
+          enum: [in_progress, completed, failed]
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    AgentTier:
+      type: string
+      enum: [T1, T2, T3]
+
+    AgentType:
+      type: object
+      required: [id, name, tier, active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        tier:
+          $ref: '#/components/schemas/AgentTier'
+        description:
+          type: string
+          nullable: true
+        can_delegate:
+          type: boolean
+          default: false
+        model_config:
+          type: object
+          additionalProperties: true
+          nullable: true
+        capabilities:
+          type: object
+          additionalProperties: true
+          nullable: true
+        tool_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of tools assigned to this agent type
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AgentTypeCreate:
+      type: object
+      required: [name, tier]
+      properties:
+        name:
+          type: string
+        tier:
+          $ref: '#/components/schemas/AgentTier'
+        description:
+          type: string
+          nullable: true
+        can_delegate:
+          type: boolean
+          default: false
+        model_config:
+          type: object
+          additionalProperties: true
+          nullable: true
+        capabilities:
+          type: object
+          additionalProperties: true
+          nullable: true
+        tool_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          default: []
+
+    AgentTypeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        can_delegate:
+          type: boolean
+          nullable: true
+        model_config:
+          type: object
+          additionalProperties: true
+          nullable: true
+        capabilities:
+          type: object
+          additionalProperties: true
+          nullable: true
+        tool_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Replace the full set of assigned tool IDs
+          nullable: true
+
+    AgentTypeListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentType'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Tool:
+      type: object
+      required: [id, name, type, active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [function, builtin]
+        parameters_schema:
+          description: JSON Schema defining tool parameters
+          type: object
+          additionalProperties: true
+          nullable: true
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ToolCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [function, builtin]
+          default: function
+        parameters_schema:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    ToolUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [function, builtin]
+          nullable: true
+        parameters_schema:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    ToolListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tool'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Settings:
+      type: object
+      description: Key-value settings pairs
+      additionalProperties: true
+
+    SettingsUpdate:
+      type: object
+      description: Partial update — provide only keys to change
+      additionalProperties: true
+
+    SettingItem:
+      type: object
+      required: [key, value]
+      properties:
+        key:
+          type: string
+        value: {}
+
+    ApiKey:
+      type: object
+      required: [id, name, created_at, last_used_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ApiKeyWithSecret:
+      type: object
+      required: [id, name, key, created_at]
+      description: Returned only once at creation — the key field contains the full secret
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        key:
+          type: string
+          description: Full API key (sk-...) — shown only once
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ApiKeyCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ApiKeyListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiKey'
+
+    ActivityTrace:
+      type: object
+      required: [thread_id, runs]
+      description: |
+        The complete delegation tree for a thread. Runs are nested
+        via parent_run_id. This endpoint builds the tree so you can
+        see which agent called which, tool calls, and results.
+      properties:
+        thread_id:
+          type: string
+          format: uuid
+        runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityRun'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunStep'
+          description: All steps across all runs (keyed by run_id)
+
+    ActivityRun:
+      type: object
+      description: A run within the activity trace, with sub-run nesting info
+      required: [id, agent_type_id, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_type_id:
+          type: string
+          format: uuid
+        agent_name:
+          type: string
+          description: Agent type name for convenience
+        agent_tier:
+          $ref: '#/components/schemas/AgentTier'
+        parent_run_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        step_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of steps belonging to this run
+        sub_run_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of child runs delegated by this run
+
+    HealthStatus:
+      type: object
+      required: [status, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          nullable: true
+        uptime_seconds:
+          type: integer
+          nullable: true
+
+    QueueStatus:
+      type: object
+      required: [queue_depth, active_runs, max_concurrency]
+      properties:
+        queue_depth:
+          type: integer
+          description: Number of runs waiting in queue
+        active_runs:
+          type: integer
+          description: Currently executing runs
+        max_concurrency:
+          type: integer
+          description: Global concurrency limit
+        per_agent:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              queue_depth:
+                type: integer
+              active:
+                type: integer
+              max_concurrent:
+                type: integer
+          description: Per-agent-type queue breakdown
+          nullable: true
+
+    SSEEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+        data: {}
+
+    RunCreatedEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum: [run.created]
+        data:
+          $ref: '#/components/schemas/Run'
+
+    RunStepCreatedEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum: [run.step.created]
+        data:
+          $ref: '#/components/schemas/RunStep'
+
+    RunStepCompletedEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum: [run.step.completed]
+        data:
+          $ref: '#/components/schemas/RunStep'
+
+    MessageCreatedEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum: [thread.message.created]
+        data:
+          $ref: '#/components/schemas/Message'
+
+    MessageDeltaEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum: [thread.message.delta]
+        data:
+          type: object
+          required: [id, delta]
+          properties:
+            id:
+              type: string
+              format: uuid
+            delta:
+              type: object
+              properties:
+                content:
+                  type: string
+                  description: Incremental content chunk
+
+    MessageCompletedEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum: [thread.message.completed]
+        data:
+          $ref: '#/components/schemas/Message'
+
+    RunCompletedEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum: [run.completed]
+        data:
+          $ref: '#/components/schemas/Run'
+
+    RunFailedEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum: [run.failed]
+        data:
+          type: object
+          required: [run, error]
+          properties:
+            run:
+              $ref: '#/components/schemas/Run'
+            error:
+              $ref: '#/components/schemas/Error'
