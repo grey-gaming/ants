@@ -30,6 +30,10 @@ RunStep:
         - $ref: 'run-step.yaml#/ToolCall'
       nullable: true
       description: Tool call details (null for message_creation and reasoning steps)
+    tool_version:
+      type: string
+      nullable: true
+      description: "Version of the tool used in this step. Nullable for steps that are not tool calls."
     created_at:
       type: string
       format: date-time
