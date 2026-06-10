@@ -42,25 +42,46 @@ bun run db:generate       # Generate Drizzle migrations from schema
 
 ## File Structure
 
+ANTS uses a Bun workspace monorepo. See ADR-017 for full rationale.
+
 ```
-src/
-  index.ts                # Entry point
-  api/
-    routes/               # Thin route handlers (no logic)
-    middleware/           # Auth, rate-limit, error-handler, logging
-    app.ts                # Hono app assembly
-  agents/                 # T1 orchestrator, T3 research, base-agent, registry
-  models/                 # Drizzle schema + per-entity query helpers
-  services/               # Business logic (thread, message, run, agent, queue)
-  tools/                  # Tool implementations + registry
-  llm/                    # Provider interface + Ollama provider + stream utils
-  queue/                  # Priority queue + scheduler + types
-  auth/                   # API key generation/validation + RLS enforcement
-  lib/                    # errors.ts, logger.ts, config.ts, utils.ts
+packages/
+  core/                    # @ants/core — depends on @ants/store
+    src/
+      services/            # Business logic (thread, message, run, agent, queue)
+      auth/                # API key generation/validation + RLS enforcement
+      lib/                 # errors.ts, logger.ts, config.ts, utils.ts
+  agents/                  # @ants/agents — depends on @ants/core only
+    src/
+      orchestrator.ts      # T1 orchestrator agent
+      research.ts          # T3 research task agent
+      base-agent.ts        # Abstract base agent
+      registry.ts          # Agent type registry
+  tools/                   # @ants/tools — depends on @ants/core only
+    src/
+      base-tool.ts         # Abstract base tool
+      web-search.ts        # Web search tool implementation
+      registry.ts          # Tool registry
+  api/                     # @ants/api — depends on all packages
+    src/
+      index.ts             # Entry point
+      routes/              # Thin route handlers (no logic)
+      middleware/           # Auth, rate-limit, error-handler, logging
+      schemas/             # Zod request/response schemas
+      app.ts               # Hono app assembly + registry wiring
+  llm/                     # @ants/llm — depends on @ants/core only
+    src/
+      provider.ts          # LLM provider interface
+      ollama.ts            # Ollama provider implementation
+      stream.ts            # Streaming utilities
+  store/                   # @ants/store — no dependencies
+    src/
+      schema.ts            # Drizzle schema definitions
+      migrations/          # Database migrations
 tests/
-  integration/            # Real Ollama + real PostgreSQL tests
-  contract/               # OpenAPI spec conformance
-  helpers/                # test-db.ts, seed.ts, mock-provider.ts, fixtures.ts
+  integration/             # Real Ollama + real PostgreSQL tests
+  contract/                # OpenAPI spec conformance
+  helpers/                 # test-db.ts, seed.ts, mock-provider.ts, fixtures.ts
 ```
 
 ---
@@ -79,10 +100,13 @@ tests/
 ### Architecture Boundaries
 - **Routes call services, never contain logic.** A route validates input (Zod), calls a service, returns a response. That's it.
 - **Services call models/agents/tools.** Business logic lives in services, not routes, not models.
-- **LLM calls go through Vercel AI SDK only.** Never call Ollama directly. Use the provider interface in `src/llm/provider.ts`.
+- **LLM calls go through Vercel AI SDK only.** Never call Ollama directly. Use the provider interface in `@ants/llm/provider.ts`.
 - **All DB access goes through Drizzle.** No raw SQL, no `pg` query directly. Define queries in model files.
 - **All input validation uses Zod.** Every API endpoint validates request body/params with Zod schemas.
-- **Structured errors from `src/lib/errors.ts`.** Never throw raw `Error`. Use `NotFoundError`, `ValidationError`, `AuthError`, etc.
+- **Structured errors from `@ants/core`.** Never throw raw `Error`. Use `NotFoundError`, `ValidationError`, `AuthError`, etc.
+- **Package boundaries are strict.** `@ants/store` depends on nothing. `@ants/core` depends only on `@ants/store`. `@ants/agents`, `@ants/tools`, and `@ants/llm` depend only on `@ants/core`. `@ants/api` depends on all packages and wires them together.
+- **Never reach into package internals from another package.** Import from the package's public API (`@ants/core`, `@ants/agents`), never from deep paths like `@ants/core/lib/errors`.
+- **Registries are config-driven.** Agent and tool registries are populated from database tables at startup. Adding a new agent or tool requires implementing it in the correct package and inserting a database row, not modifying `@ants/api`.
 
 ### Tests + Code + Docs as a Unit
 - When you change code, always consider: does this need new tests? Updated tests? Updated docs?
@@ -104,10 +128,12 @@ tests/
 - **Reference ADRs** when making decisions that align with or deviate from documented choices.
 - **Keep functions small** — MAX ~30 lines. Keep files small — MAX ~150 lines.
 - **Consider tests + code + docs as one unit.** Change code → update tests → update docs.
-- **Use Drizzle for all DB access.** Define schema in `src/models/schema.ts`, queries in model files.
+- **Use Drizzle for all DB access.** Define schema in `@ants/store`, queries in model files.
 - **Validate all inputs with Zod.** Every endpoint, every service method.
-- **Use structured errors from `src/lib/errors.ts`.**
+- **Use structured errors from `@ants/core`.**
 - **Co-locate unit tests** with source files: `thread-service.test.ts` next to `thread-service.ts`.
+- **Respect package boundaries.** `@ants/core` never imports from agents/tools/api. Agents and tools only import from `@ants/core`. `@ants/api` imports from all packages but contains no logic.
+- **Use config-driven registries.** Register agents and tools via database rows, not hardcoded imports in `@ants/api`.
 
 ---
 
@@ -130,6 +156,8 @@ tests/
 - **No barrel files** — no `index.ts` files that re-export everything from a directory.
 - **No deep nesting** — max 3 levels of nesting. Extract into separate functions.
 - **No integration tests in `src/`** — integration tests go in `tests/integration/`, contract tests in `tests/contract/`.
+- **Core never imports agents/tools** — `@ants/core` depends only on `@ants/store`. See ADR-017.
+- **Never reach into package internals** — import from `@ants/core`, `@ants/agents`, never from deep paths within packages.
 
 ---
 
@@ -138,12 +166,12 @@ tests/
 ### Route File — Thin Handler, No Logic
 
 ```typescript
-// src/api/routes/threads.ts
+// packages/api/src/routes/threads.ts
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { createThreadSchema } from "@/api/schemas/thread-schema";
-import { threadService } from "@/services/thread-service";
-import { NotFoundError } from "@/lib/errors";
+import { createThreadSchema } from "@ants/api";
+import { threadService } from "@ants/core";
+import { NotFoundError } from "@ants/core";
 
 const threads = new Hono();
 
@@ -172,11 +200,11 @@ export { threads };
 ### Service File — Business Logic, Drizzle DB, Structured Errors
 
 ```typescript
-// src/services/thread-service.ts
-import { db } from "@/lib/config";
-import { threads } from "@/models/schema";
+// packages/store/src/thread-model.ts
+import { db } from "@ants/store";
+import { threads } from "@ants/store";
 import { eq, and } from "drizzle-orm";
-import { NotFoundError, ValidationError } from "@/lib/errors";
+import { NotFoundError, ValidationError } from "@ants/core";
 
 async function create(userId: string, input: { title: string }) {
   if (!input.title.trim()) {
@@ -208,9 +236,9 @@ export const threadService = { create, getById, list };
 ### Test File — Bun Test, app.request(), focused assertions
 
 ```typescript
-// src/services/thread-service.test.ts
+// packages/core/src/services/thread-service.test.ts
 import { describe, test, expect, beforeEach } from "bun:test";
-import { createApp } from "@/api/app";
+import { createApp } from "@ants/api";
 import { createTestDb } from "../../tests/helpers/test-db";
 import { seedTestData } from "../../tests/helpers/seed";
 
@@ -310,3 +338,4 @@ describe("POST /v1/threads", () => {
 | 014 | Multi-user Auth with API Keys | Bearer token auth + row-level security at query layer |
 | 015 | Project Name - ANTS | Autonomous Networked Task System — the orchestration engine |
 | 016 | Testing Strategy | Pragmatic test-first, provider mocking, testcontainers, 80-90% coverage |
+| 017 | Repository Structure | Bun workspace monorepo, strict dependency DAG, config-driven registries |
