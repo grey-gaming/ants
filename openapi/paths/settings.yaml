@@ -1,0 +1,60 @@
+/settings:
+  get:
+    tags: [Settings]
+    operationId: getSettings
+    summary: Get all settings
+    responses:
+      '200':
+        description: All settings as key-value pairs
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/settings.yaml#/Settings'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+  patch:
+    tags: [Settings]
+    operationId: updateSettings
+    summary: Update settings (partial update, key-value pairs)
+    parameters:
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/settings.yaml#/SettingsUpdate'
+    responses:
+      '200':
+        description: Updated settings
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/settings.yaml#/Settings'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+
+/settings/{key}:
+  get:
+    tags: [Settings]
+    operationId: getSetting
+    summary: Get a specific setting
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Setting value
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/settings.yaml#/SettingItem'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
