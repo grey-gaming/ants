@@ -1,0 +1,46 @@
+InviteCode:
+  type: object
+  required: [id, code, created_by_admin_id, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    code:
+      type: string
+      description: The invite code string
+    created_by_admin_id:
+      type: string
+      format: uuid
+    used_by_user_id:
+      type: string
+      format: uuid
+      nullable: true
+      description: The user who used this invite code (null if unused)
+    created_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time
+      nullable: true
+      description: Expiration time (null means no expiration)
+
+InviteCodeCreate:
+  type: object
+  properties:
+    expires_at:
+      type: string
+      format: date-time
+      nullable: true
+      description: Optional expiration time for the invite code
+
+InviteCodeListResponse:
+  type: object
+  required: [data, pagination]
+  properties:
+    data:
+      type: array
+      items:
+        $ref: 'invite-code.yaml#/InviteCode'
+    pagination:
+      $ref: 'pagination.yaml#/Pagination'
