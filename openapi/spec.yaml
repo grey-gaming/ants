@@ -665,6 +665,10 @@ paths:
       tags: [Auth]
       operationId: createApiKey
       summary: Create an API key
+      description: |
+        Requires authentication. The first API key for a new installation must be
+        bootstrapped via the ANTS_BOOTSTRAP_KEY environment variable — this endpoint
+        cannot be used until at least one authenticated key exists.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -723,6 +727,7 @@ paths:
       tags: [Health]
       operationId: healthCheck
       summary: Health check
+      description: Intentionally public (no auth required) for monitoring and load balancer probes.
       security: []
       responses:
         '200':
