@@ -1,6 +1,6 @@
 Tool:
   type: object
-  required: [id, name, type, active, created_at, updated_at]
+  required: [id, name, type, source, status, active, created_at, updated_at]
   properties:
     id:
       type: string
@@ -13,6 +13,24 @@ Tool:
     type:
       type: string
       enum: [function, builtin]
+    source:
+      type: string
+      enum: [builtin, dynamic]
+      description: "Origin of the tool. Built-in tools ship with ANTS, dynamic tools are created at runtime by agents."
+    version:
+      type: string
+      description: "Semantic version of the tool. Built-in tools start at 1.0.0."
+      default: "1.0.0"
+    status:
+      type: string
+      enum: [draft, testing, approved, active, deprecated, disabled]
+      description: "Lifecycle status of the tool. Built-in tools are active by default."
+    required_permissions:
+      type: array
+      items:
+        type: string
+      description: "Permissions required by this tool. e.g. ['net:api.example.com', 'fs.read:/tmp']. Built-in tools have implicit full trust."
+      default: []
     parameters_schema:
       description: JSON Schema defining tool parameters
       type: object
@@ -48,6 +66,26 @@ ToolCreate:
       type: string
       enum: [function, builtin]
       default: function
+    source:
+      type: string
+      enum: [builtin, dynamic]
+      default: builtin
+      description: "Origin of the tool. Built-in tools ship with ANTS, dynamic tools are created at runtime by agents."
+    version:
+      type: string
+      default: "1.0.0"
+      description: "Semantic version of the tool. Built-in tools start at 1.0.0."
+    status:
+      type: string
+      enum: [draft, testing, approved, active, deprecated, disabled]
+      default: active
+      description: "Lifecycle status of the tool. Built-in tools are active by default."
+    required_permissions:
+      type: array
+      items:
+        type: string
+      default: []
+      description: "Permissions required by this tool. e.g. ['net:api.example.com', 'fs.read:/tmp']. Built-in tools have implicit full trust."
     parameters_schema:
       type: object
       additionalProperties: true
@@ -74,6 +112,11 @@ ToolUpdate:
       type: string
       enum: [function, builtin]
       nullable: true
+    status:
+      type: string
+      enum: [draft, testing, approved, active, deprecated, disabled]
+      nullable: true
+      description: "Lifecycle status of the tool. Can change lifecycle status."
     parameters_schema:
       type: object
       additionalProperties: true
