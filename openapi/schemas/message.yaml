@@ -1,0 +1,52 @@
+Message:
+  type: object
+  required: [id, thread_id, role, content, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    thread_id:
+      type: string
+      format: uuid
+    role:
+      type: string
+      enum: [user, assistant, system]
+    content:
+      type: string
+    agent_type_id:
+      type: string
+      format: uuid
+      nullable: true
+      description: Which agent wrote this (null for user/system messages)
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+
+MessageCreate:
+  type: object
+  required: [role, content]
+  properties:
+    role:
+      type: string
+      enum: [user, assistant, system]
+    content:
+      type: string
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+
+MessageListResponse:
+  type: object
+  required: [data, pagination]
+  properties:
+    data:
+      type: array
+      items:
+        $ref: 'message.yaml#/Message'
+    pagination:
+      $ref: 'pagination.yaml#/Pagination'
