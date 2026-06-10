@@ -1,0 +1,123 @@
+AgentTier:
+  type: string
+  enum: [T1, T2, T3]
+
+AgentType:
+  type: object
+  required: [id, name, tier, active, created_at, updated_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    tier:
+      $ref: 'agent.yaml#/AgentTier'
+    description:
+      type: string
+      nullable: true
+    can_delegate:
+      type: boolean
+      default: false
+    model_config:
+      type: object
+      additionalProperties: true
+      nullable: true
+    context_budget:
+      type: integer
+      default: 24000
+      description: Token budget for input context (32K window minus ~8K response reserve)
+    capabilities:
+      type: object
+      additionalProperties: true
+      nullable: true
+    tool_ids:
+      type: array
+      items:
+        type: string
+        format: uuid
+      description: IDs of tools assigned to this agent type
+    active:
+      type: boolean
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+AgentTypeCreate:
+  type: object
+  required: [name, tier]
+  properties:
+    name:
+      type: string
+    tier:
+      $ref: 'agent.yaml#/AgentTier'
+    description:
+      type: string
+      nullable: true
+    can_delegate:
+      type: boolean
+      default: false
+    model_config:
+      type: object
+      additionalProperties: true
+      nullable: true
+    context_budget:
+      type: integer
+      default: 24000
+      description: Token budget for input context (32K window minus ~8K response reserve)
+    capabilities:
+      type: object
+      additionalProperties: true
+      nullable: true
+    tool_ids:
+      type: array
+      items:
+        type: string
+        format: uuid
+      default: []
+
+AgentTypeUpdate:
+  type: object
+  properties:
+    name:
+      type: string
+      nullable: true
+    description:
+      type: string
+      nullable: true
+    can_delegate:
+      type: boolean
+      nullable: true
+    model_config:
+      type: object
+      additionalProperties: true
+      nullable: true
+    context_budget:
+      type: integer
+      nullable: true
+      description: Token budget for input context (32K window minus ~8K response reserve)
+    capabilities:
+      type: object
+      additionalProperties: true
+      nullable: true
+    tool_ids:
+      type: array
+      items:
+        type: string
+        format: uuid
+      description: Replace the full set of assigned tool IDs
+      nullable: true
+
+AgentTypeListResponse:
+  type: object
+  required: [data, pagination]
+  properties:
+    data:
+      type: array
+      items:
+        $ref: 'agent.yaml#/AgentType'
+    pagination:
+      $ref: 'pagination.yaml#/Pagination'
