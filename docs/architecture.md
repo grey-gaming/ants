@@ -358,44 +358,58 @@ But we diverge where our needs differ:
 
 ```
 # Threads
-POST   /v1/threads                    Create a thread
-GET    /v1/threads                    List threads
-GET    /v1/threads/{id}               Get thread
-PATCH  /v1/threads/{id}               Update thread
-DELETE /v1/threads/{id}               Delete thread
+POST   /v1/threads                           Create a thread
+GET    /v1/threads                           List threads (paginated)
+GET    /v1/threads/{id}                      Get thread
+PATCH  /v1/threads/{id}                      Update thread
+DELETE /v1/threads/{id}                      Delete thread
 
 # Messages
-POST   /v1/threads/{id}/messages      Create a message
-GET    /v1/threads/{id}/messages      List messages
+POST   /v1/threads/{id}/messages             Create a message
+GET    /v1/threads/{id}/messages             List messages (paginated)
+GET    /v1/threads/{id}/messages/{mid}       Get a message
 
 # Runs
-POST   /v1/threads/{id}/runs          Create a run
-GET    /v1/threads/{id}/runs          List runs
-GET    /v1/threads/{id}/runs/{id}     Get run
-POST   /v1/threads/{id}/runs/{id}/cancel  Cancel a run
+POST   /v1/threads/{id}/runs                 Create a run
+GET    /v1/threads/{id}/runs                 List runs (paginated)
+GET    /v1/threads/{id}/runs/{rid}           Get run status
+POST   /v1/threads/{id}/runs/{rid}/cancel    Cancel a running run
+GET    /v1/threads/{id}/runs/{rid}/stream    Stream run events (SSE)
 
-# Streaming
-GET    /v1/threads/{id}/runs/{id}/stream  Stream run events (SSE)
+# Run Steps
+GET    /v1/threads/{id}/runs/{rid}/steps     List steps in a run
+GET    /v1/threads/{id}/runs/{rid}/steps/{sid} Get step detail
 
-# Agent Types
-POST   /v1/agent-types                Register agent type
-GET    /v1/agent-types                List agent types
-GET    /v1/agent-types/{id}           Get agent type
-PATCH  /v1/agent-types/{id}           Update agent type
+# Activity Trace
+GET    /v1/threads/{id}/activity             Full delegation tree for a thread
 
-# Tools
-POST   /v1/tools                      Register tool
-GET    /v1/tools                      List tools
-GET    /v1/tools/{id}                 Get tool
+# Agent Registry
+POST   /v1/agents                            Register agent type
+GET    /v1/agents                            List agent types (paginated)
+GET    /v1/agents/{id}                       Get agent type (includes tools)
+PATCH  /v1/agents/{id}                       Update agent type (incl. tool_ids)
+DELETE /v1/agents/{id}                       Deactivate agent type
 
-# Queue
-GET    /v1/queue                      Get queue status
-GET    /v1/queue/positions/{run_id}    Get run position in queue
+# Tool Registry
+POST   /v1/tools                             Register tool
+GET    /v1/tools                             List tools (paginated)
+GET    /v1/tools/{id}                        Get tool detail
+PATCH  /v1/tools/{id}                        Update tool
+DELETE /v1/tools/{id}                        Deactivate tool
+
+# Settings
+GET    /v1/settings                          Get all settings
+PATCH  /v1/settings                          Update settings (partial)
+GET    /v1/settings/{key}                    Get a specific setting
 
 # Auth
-POST   /v1/api-keys                   Create API key
-GET    /v1/api-keys                   List API keys
-DELETE /v1/api-keys/{id}               Revoke API key
+POST   /v1/api-keys                          Create API key
+GET    /v1/api-keys                          List API keys
+DELETE /v1/api-keys/{id}                     Revoke API key
+
+# Health
+GET    /v1/health                            Health check
+GET    /v1/health/queue                      Queue status + concurrency info
 ```
 
 ---
@@ -428,8 +442,8 @@ When a Run is created and the concurrency limit is reached, the Run enters a **q
   - `high`: User-initiated runs
   - `normal`: Sub-agent delegated runs
   - `low`: Background tasks, deferred processing
-- **Queue visibility**: The `/v1/queue` endpoint shows current queue depth, estimated wait times, and per-agent-type load
-- **Position tracking**: Each queued Run can be tracked via `/v1/queue/positions/{run_id}`
+- **Queue visibility**: The `/v1/health/queue` endpoint shows current queue depth, active runs, max concurrency, and per-agent-type load
+- **Position tracking**: Each queued Run can be tracked via its Run status (poll `GET /v1/threads/{id}/runs/{rid}`)
 
 **Priority Inheritance**: When a high-priority user request spawns sub-runs, those sub-runs inherit the parent's priority. This ensures the user's request isn't blocked by lower-priority background work.
 
@@ -571,7 +585,7 @@ ants/
 │       ├── 002-runtime-bun.md
 │       └── ...
 ├── openapi/
-│   └── v1.yaml                  # OpenAPI 3.1 specification
+│   └── spec.yaml                  # OpenAPI 3.1 specification
 ├── packages/
 │   ├── core/                    # @ants/core — depends on @ants/store
 │   │   ├── src/
@@ -597,9 +611,9 @@ ants/
 │   │   │   │   ├── threads.ts     # Thread CRUD endpoints
 │   │   │   │   ├── messages.ts    # Message endpoints
 │   │   │   │   ├── runs.ts        # Run endpoints + streaming
-│   │   │   │   ├── agent-types.ts # Agent registry endpoints
+│   │   │   │   ├── agents.ts         # Agent registry endpoints
 │   │   │   │   ├── tools.ts       # Tool registry endpoints
-│   │   │   │   ├── queue.ts      # Queue inspection endpoints
+│   │   │   │   ├── health.ts        # Health and queue status endpoints
 │   │   │   │   └── auth.ts       # API key management endpoints
 │   │   │   ├── middleware/
 │   │   │   │   ├── auth.ts        # API key validation
