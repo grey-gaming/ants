@@ -1,0 +1,43 @@
+Settings:
+  type: object
+  description: Key-value settings pairs
+  additionalProperties: true
+  properties:
+    compaction_turns:
+      type: integer
+      default: 3
+      description: Number of recent turns to retain tool results for during context compaction
+    default_model:
+      type: string
+      nullable: true
+      description: Default model for all users (can be overridden per-user)
+    default_max_concurrent_runs:
+      type: integer
+      nullable: true
+      description: Default max concurrent runs (can be overridden per-user)
+
+SettingsUpdate:
+  type: object
+  description: Partial update — provide only keys to change
+  additionalProperties: true
+  properties:
+    compaction_turns:
+      type: integer
+      nullable: true
+      description: Number of recent turns to retain tool results for during context compaction
+    default_model:
+      type: string
+      nullable: true
+      description: Default model for all users (can be overridden per-user)
+    default_max_concurrent_runs:
+      type: integer
+      nullable: true
+      description: Default max concurrent runs (can be overridden per-user)
+
+SettingItem:
+  type: object
+  required: [key, value]
+  properties:
+    key:
+      type: string
+    value: {}
