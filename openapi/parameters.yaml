@@ -1,0 +1,93 @@
+ThreadId:
+  name: id
+  in: path
+  required: true
+  description: Thread ID
+  schema:
+    type: string
+    format: uuid
+
+MessageId:
+  name: mid
+  in: path
+  required: true
+  description: Message ID
+  schema:
+    type: string
+    format: uuid
+
+RunId:
+  name: rid
+  in: path
+  required: true
+  description: Run ID
+  schema:
+    type: string
+    format: uuid
+
+StepId:
+  name: sid
+  in: path
+  required: true
+  description: Run Step ID
+  schema:
+    type: string
+    format: uuid
+
+AgentId:
+  name: id
+  in: path
+  required: true
+  description: Agent Type ID
+  schema:
+    type: string
+    format: uuid
+
+ToolId:
+  name: id
+  in: path
+  required: true
+  description: Tool ID
+  schema:
+    type: string
+    format: uuid
+
+IdempotencyKey:
+  name: Idempotency-Key
+  in: header
+  description: Unique key to prevent duplicate mutations
+  schema:
+    type: string
+
+After:
+  name: after
+  in: query
+  description: Cursor for forward pagination
+  schema:
+    type: string
+
+Before:
+  name: before
+  in: query
+  description: Cursor for backward pagination
+  schema:
+    type: string
+
+Limit:
+  name: limit
+  in: query
+  description: Maximum items to return
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 100
+    default: 20
+
+UserId:
+  name: id
+  in: path
+  required: true
+  description: User ID
+  schema:
+    type: string
+    format: uuid
