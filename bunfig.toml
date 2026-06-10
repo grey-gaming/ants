@@ -1,0 +1,6 @@
+[install]
+# Use workspace protocol for inter-package references
+peer = false
+
+[install.scopes]
+"@ants" = { workspaces = true }

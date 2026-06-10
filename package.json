@@ -3,13 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "spec:bundle": "bun run scripts/bundle-spec.ts",
     "spec:validate": "bun run scripts/bundle-spec.ts && npx @redocly/cli lint openapi/bundled.yaml",
     "spec:types": "bun run scripts/bundle-spec.ts && npx openapi-typescript openapi/bundled.yaml -o packages/core/src/types/api.d.ts"
   },
   "devDependencies": {
-    "yaml": "^2.4.0"
+    "@redocly/cli": "2.32.0",
+    "@types/bun": "1.3.13",
+    "openapi-typescript": "7.13.0",
+    "typescript": "6.0.3",
+    "yaml": "2.7.1"
   }
 }
