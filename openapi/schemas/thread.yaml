@@ -1,0 +1,58 @@
+Thread:
+  type: object
+  required: [id, created_at, updated_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    user_id:
+      type: string
+      format: uuid
+      nullable: true
+      description: Owner of the thread. Nullable for backward compatibility.
+    title:
+      type: string
+      nullable: true
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+ThreadCreate:
+  type: object
+  properties:
+    title:
+      type: string
+      nullable: true
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+
+ThreadUpdate:
+  type: object
+  properties:
+    title:
+      type: string
+      nullable: true
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+
+ThreadListResponse:
+  type: object
+  required: [data, pagination]
+  properties:
+    data:
+      type: array
+      items:
+        $ref: 'thread.yaml#/Thread'
+    pagination:
+      $ref: 'pagination.yaml#/Pagination'

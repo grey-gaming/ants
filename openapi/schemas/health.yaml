@@ -1,0 +1,57 @@
+HealthStatus:
+  type: object
+  required: [status, timestamp]
+  properties:
+    status:
+      type: string
+      enum: [healthy, degraded, unhealthy]
+    timestamp:
+      type: string
+      format: date-time
+    version:
+      type: string
+      nullable: true
+    uptime_seconds:
+      type: integer
+      nullable: true
+    database:
+      type: string
+      enum: [connected, disconnected]
+      description: Database connection status
+    llm_provider:
+      type: string
+      enum: [connected, disconnected]
+      description: LLM provider connection status
+
+QueueStatus:
+  type: object
+  required: [queue_depth, active_runs, max_concurrency]
+  properties:
+    queue_depth:
+      type: integer
+      description: Number of runs waiting in queue
+    active_runs:
+      type: integer
+      description: Currently executing runs
+    max_concurrency:
+      type: integer
+      description: Global concurrency limit
+    per_agent:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          queue_depth:
+            type: integer
+          active:
+            type: integer
+          max_concurrent:
+            type: integer
+      description: Per-agent-type queue breakdown
+      nullable: true
+    per_user_active_runs:
+      type: object
+      additionalProperties:
+        type: integer
+      description: Active run counts per user ID
+      nullable: true

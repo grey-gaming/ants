@@ -1,0 +1,85 @@
+User:
+  type: object
+  required: [id, email, name, role, created_at, updated_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    email:
+      type: string
+      format: email
+    name:
+      type: string
+    role:
+      type: string
+      enum: [user, admin]
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+UserUpdateMe:
+  type: object
+  properties:
+    name:
+      type: string
+      nullable: true
+    password:
+      type: string
+      format: password
+      nullable: true
+      minLength: 8
+
+UserUpdate:
+  type: object
+  description: Admin-only user update
+  properties:
+    role:
+      type: string
+      enum: [user, admin]
+      nullable: true
+    name:
+      type: string
+      nullable: true
+
+UserListResponse:
+  type: object
+  required: [data, pagination]
+  properties:
+    data:
+      type: array
+      items:
+        $ref: 'user.yaml#/User'
+    pagination:
+      $ref: 'pagination.yaml#/Pagination'
+
+UserSettings:
+  type: object
+  required: [user_id]
+  properties:
+    user_id:
+      type: string
+      format: uuid
+    model:
+      type: string
+      nullable: true
+      description: Override the default model for this user
+    max_concurrent_runs:
+      type: integer
+      nullable: true
+      description: Override the default max concurrent runs for this user
+
+UserSettingsUpdate:
+  type: object
+  description: Partial update — provide only fields to change
+  properties:
+    model:
+      type: string
+      nullable: true
+      description: Override the default model for this user
+    max_concurrent_runs:
+      type: integer
+      nullable: true
+      description: Override the default max concurrent runs for this user

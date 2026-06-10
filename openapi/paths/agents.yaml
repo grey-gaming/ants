@@ -1,0 +1,99 @@
+/agents:
+  post:
+    tags: [Agents]
+    operationId: createAgent
+    summary: Register an agent type
+    parameters:
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/agent.yaml#/AgentTypeCreate'
+    responses:
+      '201':
+        description: Agent type registered
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/agent.yaml#/AgentType'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+  get:
+    tags: [Agents]
+    operationId: listAgents
+    summary: List agent types
+    parameters:
+      - $ref: '../parameters.yaml#/After'
+      - $ref: '../parameters.yaml#/Before'
+      - $ref: '../parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: List of agent types
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/agent.yaml#/AgentTypeListResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+
+/agents/{id}:
+  get:
+    tags: [Agents]
+    operationId: getAgent
+    summary: Get agent type detail (includes assigned tools)
+    parameters:
+      - $ref: '../parameters.yaml#/AgentId'
+    responses:
+      '200':
+        description: Agent type details with assigned tools
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/agent.yaml#/AgentType'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  patch:
+    tags: [Agents]
+    operationId: updateAgent
+    summary: Update agent type (including tool_ids for tool assignment)
+    parameters:
+      - $ref: '../parameters.yaml#/AgentId'
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/agent.yaml#/AgentTypeUpdate'
+    responses:
+      '200':
+        description: Agent type updated
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/agent.yaml#/AgentType'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  delete:
+    tags: [Agents]
+    operationId: deactivateAgent
+    summary: Deactivate an agent type
+    parameters:
+      - $ref: '../parameters.yaml#/AgentId'
+    responses:
+      '204':
+        description: Agent type deactivated
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'

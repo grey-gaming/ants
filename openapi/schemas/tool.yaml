@@ -1,0 +1,99 @@
+Tool:
+  type: object
+  required: [id, name, type, active, created_at, updated_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    type:
+      type: string
+      enum: [function, builtin]
+    parameters_schema:
+      description: JSON Schema defining tool parameters
+      type: object
+      additionalProperties: true
+      nullable: true
+    tool_timeout_seconds:
+      type: integer
+      default: 30
+      description: Maximum execution time in seconds before the tool is timed out
+    max_output_chars:
+      type: integer
+      default: 10000
+      description: Maximum output size in characters; truncated results include a marker
+    active:
+      type: boolean
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+ToolCreate:
+  type: object
+  required: [name]
+  properties:
+    name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    type:
+      type: string
+      enum: [function, builtin]
+      default: function
+    parameters_schema:
+      type: object
+      additionalProperties: true
+      nullable: true
+    tool_timeout_seconds:
+      type: integer
+      default: 30
+      description: Maximum execution time in seconds before the tool is timed out
+    max_output_chars:
+      type: integer
+      default: 10000
+      description: Maximum output size in characters; truncated results include a marker
+
+ToolUpdate:
+  type: object
+  properties:
+    name:
+      type: string
+      nullable: true
+    description:
+      type: string
+      nullable: true
+    type:
+      type: string
+      enum: [function, builtin]
+      nullable: true
+    parameters_schema:
+      type: object
+      additionalProperties: true
+      nullable: true
+    tool_timeout_seconds:
+      type: integer
+      nullable: true
+      description: Maximum execution time in seconds before the tool is timed out
+    max_output_chars:
+      type: integer
+      nullable: true
+      description: Maximum output size in characters; truncated results include a marker
+
+ToolListResponse:
+  type: object
+  required: [data, pagination]
+  properties:
+    data:
+      type: array
+      items:
+        $ref: 'tool.yaml#/Tool'
+    pagination:
+      $ref: 'pagination.yaml#/Pagination'

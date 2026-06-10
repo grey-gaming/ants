@@ -1,0 +1,167 @@
+/users/me:
+  get:
+    tags: [Users]
+    operationId: getCurrentUser
+    summary: Get the authenticated user
+    description: Returns the currently authenticated user's profile.
+    responses:
+      '200':
+        description: Current user details
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/User'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+  patch:
+    tags: [Users]
+    operationId: updateCurrentUser
+    summary: Update the authenticated user
+    description: Update the currently authenticated user's name or password.
+    parameters:
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/user.yaml#/UserUpdateMe'
+    responses:
+      '200':
+        description: User updated
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/User'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+
+/users:
+  get:
+    tags: [Users]
+    operationId: listUsers
+    summary: List all users (admin only)
+    description: Returns a paginated list of all users. Requires admin role.
+    parameters:
+      - $ref: '../parameters.yaml#/After'
+      - $ref: '../parameters.yaml#/Before'
+      - $ref: '../parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: List of users
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/UserListResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+
+/users/{id}:
+  get:
+    tags: [Users]
+    operationId: getUser
+    summary: Get a user by ID (admin only)
+    description: Returns a specific user. Requires admin role.
+    parameters:
+      - $ref: '../parameters.yaml#/UserId'
+    responses:
+      '200':
+        description: User details
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/User'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  patch:
+    tags: [Users]
+    operationId: updateUser
+    summary: Update a user (admin only)
+    description: Update a user's role or name. Requires admin role.
+    parameters:
+      - $ref: '../parameters.yaml#/UserId'
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/user.yaml#/UserUpdate'
+    responses:
+      '200':
+        description: User updated
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/User'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  delete:
+    tags: [Users]
+    operationId: deactivateUser
+    summary: Deactivate a user (admin only)
+    description: Soft-delete — deactivates the user. Requires admin role.
+    parameters:
+      - $ref: '../parameters.yaml#/UserId'
+    responses:
+      '204':
+        description: User deactivated
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+
+/users/{id}/settings:
+  get:
+    tags: [Users]
+    operationId: getUserSettings
+    summary: Get user settings (admin only)
+    description: Returns per-user settings (model override, concurrency override). Requires admin role.
+    parameters:
+      - $ref: '../parameters.yaml#/UserId'
+    responses:
+      '200':
+        description: User settings
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/UserSettings'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  patch:
+    tags: [Users]
+    operationId: updateUserSettings
+    summary: Update user settings (admin only)
+    description: Update per-user settings (model override, concurrency override). Requires admin role.
+    parameters:
+      - $ref: '../parameters.yaml#/UserId'
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/user.yaml#/UserSettingsUpdate'
+    responses:
+      '200':
+        description: User settings updated
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/UserSettings'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'

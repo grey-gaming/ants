@@ -1,0 +1,99 @@
+/threads:
+  post:
+    tags: [Threads]
+    operationId: createThread
+    summary: Create a thread
+    parameters:
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/thread.yaml#/ThreadCreate'
+    responses:
+      '201':
+        description: Thread created
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/thread.yaml#/Thread'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+  get:
+    tags: [Threads]
+    operationId: listThreads
+    summary: List threads
+    parameters:
+      - $ref: '../parameters.yaml#/After'
+      - $ref: '../parameters.yaml#/Before'
+      - $ref: '../parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: List of threads
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/thread.yaml#/ThreadListResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+
+/threads/{id}:
+  get:
+    tags: [Threads]
+    operationId: getThread
+    summary: Get a thread
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+    responses:
+      '200':
+        description: Thread details
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/thread.yaml#/Thread'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  patch:
+    tags: [Threads]
+    operationId: updateThread
+    summary: Update a thread
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/thread.yaml#/ThreadUpdate'
+    responses:
+      '200':
+        description: Thread updated
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/thread.yaml#/Thread'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  delete:
+    tags: [Threads]
+    operationId: deleteThread
+    summary: Delete a thread
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+    responses:
+      '204':
+        description: Thread deleted
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'

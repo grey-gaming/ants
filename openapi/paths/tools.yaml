@@ -1,0 +1,99 @@
+/tools:
+  post:
+    tags: [Tools]
+    operationId: createTool
+    summary: Register a tool
+    parameters:
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/tool.yaml#/ToolCreate'
+    responses:
+      '201':
+        description: Tool registered
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/tool.yaml#/Tool'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+  get:
+    tags: [Tools]
+    operationId: listTools
+    summary: List tools
+    parameters:
+      - $ref: '../parameters.yaml#/After'
+      - $ref: '../parameters.yaml#/Before'
+      - $ref: '../parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: List of tools
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/tool.yaml#/ToolListResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+
+/tools/{id}:
+  get:
+    tags: [Tools]
+    operationId: getTool
+    summary: Get tool detail
+    parameters:
+      - $ref: '../parameters.yaml#/ToolId'
+    responses:
+      '200':
+        description: Tool details
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/tool.yaml#/Tool'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  patch:
+    tags: [Tools]
+    operationId: updateTool
+    summary: Update a tool
+    parameters:
+      - $ref: '../parameters.yaml#/ToolId'
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/tool.yaml#/ToolUpdate'
+    responses:
+      '200':
+        description: Tool updated
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/tool.yaml#/Tool'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+  delete:
+    tags: [Tools]
+    operationId: deactivateTool
+    summary: Deactivate a tool
+    parameters:
+      - $ref: '../parameters.yaml#/ToolId'
+    responses:
+      '204':
+        description: Tool deactivated
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'

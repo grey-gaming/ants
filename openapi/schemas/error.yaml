@@ -1,0 +1,70 @@
+Error:
+  type: object
+  required: [error]
+  properties:
+    error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error context
+
+ErrorCode:
+  type: string
+  enum:
+    - BAD_REQUEST
+    - UNAUTHORIZED
+    - NOT_FOUND
+    - CONFLICT
+    - VALIDATION_ERROR
+    - RATE_LIMIT_EXCEEDED
+    - INTERNAL_ERROR
+    - TOOL_TIMEOUT
+    - TOOL_NOT_FOUND
+    - TOOL_INVALID_ARGUMENTS
+    - TOOL_OUTPUT_TRUNCATED
+    - TOOL_PERMISSION_DENIED
+    - TOOL_EXECUTION_FAILED
+
+ToolExecutionError:
+  type: object
+  description: Error details specific to tool execution failures
+  required: [error]
+  properties:
+    error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - TOOL_TIMEOUT
+            - TOOL_NOT_FOUND
+            - TOOL_INVALID_ARGUMENTS
+            - TOOL_OUTPUT_TRUNCATED
+            - TOOL_PERMISSION_DENIED
+            - TOOL_EXECUTION_FAILED
+          description: Tool-specific error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: Additional error context (e.g., schema validation errors for TOOL_INVALID_ARGUMENTS)
+        tool_id:
+          type: string
+          format: uuid
+          description: ID of the tool that failed
+        tool_name:
+          type: string
+          description: Name of the tool that failed

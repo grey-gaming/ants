@@ -1,0 +1,165 @@
+SSEEvent:
+  type: object
+  required: [event, data]
+  properties:
+    event:
+      type: string
+    data: {}
+
+RunCreatedEvent:
+  type: object
+  required: [event, data]
+  properties:
+    event:
+      type: string
+      enum: [run.created]
+    data:
+      $ref: 'run.yaml#/Run'
+
+RunStepCreatedEvent:
+  type: object
+  required: [event, data]
+  properties:
+    event:
+      type: string
+      enum: [run.step.created]
+    data:
+      $ref: 'run-step.yaml#/RunStep'
+
+RunStepCompletedEvent:
+  type: object
+  required: [event, data]
+  properties:
+    event:
+      type: string
+      enum: [run.step.completed]
+    data:
+      $ref: 'run-step.yaml#/RunStep'
+
+MessageCreatedEvent:
+  type: object
+  required: [event, data]
+  properties:
+    event:
+      type: string
+      enum: [thread.message.created]
+    data:
+      $ref: 'message.yaml#/Message'
+
+MessageDeltaEvent:
+  type: object
+  required: [event, data]
+  properties:
+    event:
+      type: string
+      enum: [thread.message.delta]
+    data:
+      type: object
+      required: [id, delta]
+      properties:
+        id:
+          type: string
+          format: uuid
+        delta:
+          type: object
+          properties:
+            content:
+              type: string
+              description: Incremental content chunk
+
+MessageCompletedEvent:
+  type: object
+  required: [event, data]
+  properties:
+    event:
+      type: string
+      enum: [thread.message.completed]
+    data:
+      $ref: 'message.yaml#/Message'
+
+RunCompletedEvent:
+  type: object
+  required: [event, data]
+  properties:
+    event:
+      type: string
+      enum: [run.completed]
+    data:
+      $ref: 'run.yaml#/Run'
+
+RunFailedEvent:
+  type: object
+  required: [event, data]
+  properties:
+    event:
+      type: string
+      enum: [run.failed]
+    data:
+      type: object
+      required: [run, error]
+      properties:
+        run:
+          $ref: 'run.yaml#/Run'
+        error:
+          $ref: 'error.yaml#/Error'
+
+ActivityTrace:
+  type: object
+  required: [thread_id, runs]
+  description: |
+    The complete delegation tree for a thread. Runs are nested
+    via parent_run_id with steps embedded directly in each run
+    for a self-contained tree — no client-side cross-referencing needed.
+  properties:
+    thread_id:
+      type: string
+      format: uuid
+    runs:
+      type: array
+      items:
+        $ref: 'sse-events.yaml#/ActivityRun'
+
+ActivityRun:
+  type: object
+  description: A run within the activity trace, with embedded steps and sub-run nesting
+  required: [id, agent_type_id, status, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    agent_type_id:
+      type: string
+      format: uuid
+    agent_name:
+      type: string
+      description: Agent type name for convenience
+    agent_tier:
+      $ref: 'agent.yaml#/AgentTier'
+    parent_run_id:
+      type: string
+      format: uuid
+      nullable: true
+    status:
+      $ref: 'run.yaml#/RunStatus'
+    started_at:
+      type: string
+      format: date-time
+      nullable: true
+    completed_at:
+      type: string
+      format: date-time
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    steps:
+      type: array
+      items:
+        $ref: 'run-step.yaml#/RunStep'
+      description: Steps belonging to this run (embedded for convenience)
+    sub_run_ids:
+      type: array
+      items:
+        type: string
+        format: uuid
+      description: IDs of child runs delegated by this run

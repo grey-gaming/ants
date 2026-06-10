@@ -1,0 +1,72 @@
+RunStatus:
+  type: string
+  enum: [queued, in_progress, awaiting_response, paused, completed, failed, cancelled]
+
+Run:
+  type: object
+  required: [id, thread_id, agent_type_id, status, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    thread_id:
+      type: string
+      format: uuid
+    agent_type_id:
+      type: string
+      format: uuid
+    parent_run_id:
+      type: string
+      format: uuid
+      nullable: true
+      description: Non-null for sub-runs (delegated by another agent)
+    status:
+      $ref: 'run.yaml#/RunStatus'
+    model_config:
+      type: object
+      additionalProperties: true
+      nullable: true
+      description: Model settings (model, temperature, etc.)
+    usage:
+      type: object
+      additionalProperties: true
+      nullable: true
+      description: Token usage counts
+    started_at:
+      type: string
+      format: date-time
+      nullable: true
+    completed_at:
+      type: string
+      format: date-time
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+
+RunCreate:
+  type: object
+  required: [agent_type_id]
+  properties:
+    agent_type_id:
+      type: string
+      format: uuid
+    model_config:
+      type: object
+      additionalProperties: true
+      nullable: true
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+
+RunListResponse:
+  type: object
+  required: [data, pagination]
+  properties:
+    data:
+      type: array
+      items:
+        $ref: 'run.yaml#/Run'
+    pagination:
+      $ref: 'pagination.yaml#/Pagination'

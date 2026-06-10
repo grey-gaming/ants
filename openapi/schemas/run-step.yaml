@@ -1,0 +1,82 @@
+RunStepType:
+  type: string
+  enum: [message_creation, tool_call, agent_delegation, reasoning]
+
+RunStepStatus:
+  type: string
+  enum: [pending, validating, executing, completed, failed, timed_out]
+
+RunStep:
+  type: object
+  required: [id, run_id, type, status, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    run_id:
+      type: string
+      format: uuid
+    type:
+      $ref: 'run-step.yaml#/RunStepType'
+    status:
+      $ref: 'run-step.yaml#/RunStepStatus'
+    details:
+      type: object
+      additionalProperties: true
+      nullable: true
+      description: Type-specific details (message, tool call, delegation target, etc.)
+    tool_call:
+      allOf:
+        - $ref: 'run-step.yaml#/ToolCall'
+      nullable: true
+      description: Tool call details (null for message_creation and reasoning steps)
+    created_at:
+      type: string
+      format: date-time
+    completed_at:
+      type: string
+      format: date-time
+      nullable: true
+
+RunStepListResponse:
+  type: object
+  required: [data, pagination]
+  properties:
+    data:
+      type: array
+      items:
+        $ref: 'run-step.yaml#/RunStep'
+    pagination:
+      $ref: 'pagination.yaml#/Pagination'
+
+ToolCall:
+  type: object
+  required: [id, name, arguments, status]
+  properties:
+    id:
+      type: string
+      format: uuid
+    tool_id:
+      type: string
+      format: uuid
+      nullable: true
+    name:
+      type: string
+    arguments:
+      type: object
+      additionalProperties: true
+    result:
+      type: object
+      additionalProperties: true
+      description: Tool execution result
+      nullable: true
+    status:
+      type: string
+      enum: [pending, validating, executing, completed, failed, timed_out]
+    created_at:
+      type: string
+      format: date-time
+    completed_at:
+      type: string
+      format: date-time
+      nullable: true

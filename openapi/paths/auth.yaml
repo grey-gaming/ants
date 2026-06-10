@@ -1,0 +1,117 @@
+/api-keys:
+  post:
+    tags: [Auth]
+    operationId: createApiKey
+    summary: Create an API key
+    description: |
+      Requires authentication. The first API key for a new installation must be
+      bootstrapped via the ANTS_BOOTSTRAP_KEY environment variable — this endpoint
+      cannot be used until at least one authenticated key exists.
+      Users can only create API keys for themselves. The user_id is derived from
+      the authenticated user's token.
+    parameters:
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/auth.yaml#/ApiKeyCreate'
+    responses:
+      '201':
+        description: API key created (full key returned only once)
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/auth.yaml#/ApiKeyWithSecret'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+  get:
+    tags: [Auth]
+    operationId: listApiKeys
+    summary: List API keys
+    responses:
+      '200':
+        description: List of API keys (keys are masked)
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/auth.yaml#/ApiKeyListResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+
+/api-keys/{id}:
+  delete:
+    tags: [Auth]
+    operationId: revokeApiKey
+    summary: Revoke an API key
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '204':
+        description: API key revoked
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+
+/auth/register:
+  post:
+    tags: [Auth]
+    operationId: registerUser
+    summary: Register a new user
+    description: |
+      Invite-only registration. Requires a valid invite code.
+      Returns a JWT token and user object on success.
+    security: []
+    parameters:
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/auth.yaml#/RegisterRequest'
+    responses:
+      '201':
+        description: User registered successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/auth.yaml#/AuthResponse'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+
+/auth/login:
+  post:
+    tags: [Auth]
+    operationId: loginUser
+    summary: Authenticate and get a JWT token
+    description: Authenticate with email and password to receive a JWT token.
+    security: []
+    parameters:
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/auth.yaml#/LoginRequest'
+    responses:
+      '200':
+        description: Authentication successful
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/auth.yaml#/AuthResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
