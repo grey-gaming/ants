@@ -1,0 +1,43 @@
+/invite-codes:
+  post:
+    tags: [InviteCodes]
+    operationId: createInviteCode
+    summary: Generate an invite code (admin only)
+    description: Creates a new invite code. Requires admin role.
+    parameters:
+      - $ref: '../parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/invite-code.yaml#/InviteCodeCreate'
+    responses:
+      '201':
+        description: Invite code created
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/invite-code.yaml#/InviteCode'
+      '400':
+        $ref: '../responses.yaml#/BadRequest'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+  get:
+    tags: [InviteCodes]
+    operationId: listInviteCodes
+    summary: List invite codes (admin only)
+    description: Returns a paginated list of invite codes. Requires admin role.
+    parameters:
+      - $ref: '../parameters.yaml#/After'
+      - $ref: '../parameters.yaml#/Before'
+      - $ref: '../parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: List of invite codes
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/invite-code.yaml#/InviteCodeListResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
