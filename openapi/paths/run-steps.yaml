@@ -1,0 +1,43 @@
+/threads/{id}/runs/{rid}/steps:
+  get:
+    tags: [Run Steps]
+    operationId: listRunSteps
+    summary: List all steps in a run
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/RunId'
+      - $ref: '../parameters.yaml#/After'
+      - $ref: '../parameters.yaml#/Before'
+      - $ref: '../parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: List of run steps
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/run-step.yaml#/RunStepListResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
+
+/threads/{id}/runs/{rid}/steps/{sid}:
+  get:
+    tags: [Run Steps]
+    operationId: getRunStep
+    summary: Get step detail
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/RunId'
+      - $ref: '../parameters.yaml#/StepId'
+    responses:
+      '200':
+        description: Run step details
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/run-step.yaml#/RunStep'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
