@@ -3,5 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "src/index.ts"
+  "main": "src/index.ts",
+  "dependencies": {
+    "@ants/core": "workspace:*",
+    "@ants/agents": "workspace:*",
+    "@ants/tools": "workspace:*",
+    "@ants/llm": "workspace:*",
+    "@ants/store": "workspace:*",
+    "hono": "4.12.23",
+    "@hono/zod-validator": "0.4.2"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
 }
