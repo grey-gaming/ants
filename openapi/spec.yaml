@@ -37,9 +37,13 @@ tags:
   - name: Settings
     description: Key-value configuration
   - name: Auth
-    description: API key management
+    description: Authentication and API key management
   - name: Health
     description: System health and queue status
+  - name: Users
+    description: User management
+  - name: InviteCodes
+    description: Invite code management
 
 paths:
   /threads:
@@ -669,6 +673,8 @@ paths:
         Requires authentication. The first API key for a new installation must be
         bootstrapped via the ANTS_BOOTSTRAP_KEY environment variable — this endpoint
         cannot be used until at least one authenticated key exists.
+        Users can only create API keys for themselves. The user_id is derived from
+        the authenticated user's token.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -721,6 +727,272 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: registerUser
+      summary: Register a new user
+      description: |
+        Invite-only registration. Requires a valid invite code.
+        Returns a JWT token and user object on success.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: loginUser
+      summary: Authenticate and get a JWT token
+      description: Authenticate with email and password to receive a JWT token.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me:
+    get:
+      tags: [Users]
+      operationId: getCurrentUser
+      summary: Get the authenticated user
+      description: Returns the currently authenticated user's profile.
+      responses:
+        '200':
+          description: Current user details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Users]
+      operationId: updateCurrentUser
+      summary: Update the authenticated user
+      description: Update the currently authenticated user's name or password.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateMe'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: List all users (admin only)
+      description: Returns a paginated list of all users. Requires admin role.
+      parameters:
+        - $ref: '#/components/parameters/After'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      operationId: getUser
+      summary: Get a user by ID (admin only)
+      description: Returns a specific user. Requires admin role.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Users]
+      operationId: updateUser
+      summary: Update a user (admin only)
+      description: Update a user's role or name. Requires admin role.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Users]
+      operationId: deactivateUser
+      summary: Deactivate a user (admin only)
+      description: Soft-delete — deactivates the user. Requires admin role.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: User deactivated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{id}/settings:
+    get:
+      tags: [Users]
+      operationId: getUserSettings
+      summary: Get user settings (admin only)
+      description: Returns per-user settings (model override, concurrency override). Requires admin role.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Users]
+      operationId: updateUserSettings
+      summary: Update user settings (admin only)
+      description: Update per-user settings (model override, concurrency override). Requires admin role.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSettingsUpdate'
+      responses:
+        '200':
+          description: User settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /invite-codes:
+    post:
+      tags: [InviteCodes]
+      operationId: createInviteCode
+      summary: Generate an invite code (admin only)
+      description: Creates a new invite code. Requires admin role.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteCodeCreate'
+      responses:
+        '201':
+          description: Invite code created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCode'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [InviteCodes]
+      operationId: listInviteCodes
+      summary: List invite codes (admin only)
+      description: Returns a paginated list of invite codes. Requires admin role.
+      parameters:
+        - $ref: '#/components/parameters/After'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of invite codes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCodeListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /health:
     get:
@@ -846,6 +1118,15 @@ components:
         maximum: 100
         default: 20
 
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: User ID
+      schema:
+        type: string
+        format: uuid
+
   responses:
     BadRequest:
       description: Invalid request
@@ -966,6 +1247,11 @@ components:
         id:
           type: string
           format: uuid
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Owner of the thread. Nullable for backward compatibility.
         title:
           type: string
           nullable: true
@@ -1068,7 +1354,7 @@ components:
 
     RunStatus:
       type: string
-      enum: [queued, in_progress, awaiting_response, completed, failed, cancelled]
+      enum: [queued, in_progress, awaiting_response, paused, completed, failed, cancelled]
 
     Run:
       type: object
@@ -1455,6 +1741,14 @@ components:
           type: integer
           default: 3
           description: Number of recent turns to retain tool results for during context compaction
+        default_model:
+          type: string
+          nullable: true
+          description: Default model for all users (can be overridden per-user)
+        default_max_concurrent_runs:
+          type: integer
+          nullable: true
+          description: Default max concurrent runs (can be overridden per-user)
 
     SettingsUpdate:
       type: object
@@ -1465,6 +1759,14 @@ components:
           type: integer
           nullable: true
           description: Number of recent turns to retain tool results for during context compaction
+        default_model:
+          type: string
+          nullable: true
+          description: Default model for all users (can be overridden per-user)
+        default_max_concurrent_runs:
+          type: integer
+          nullable: true
+          description: Default max concurrent runs (can be overridden per-user)
 
     SettingItem:
       type: object
@@ -1597,6 +1899,177 @@ components:
             format: uuid
           description: IDs of child runs delegated by this run
 
+    RegisterRequest:
+      type: object
+      required: [email, password, name, invite_code]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+        name:
+          type: string
+        invite_code:
+          type: string
+          description: Valid invite code required for registration
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+          description: JWT token for authentication
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      required: [id, email, name, role, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [user, admin]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserUpdateMe:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        password:
+          type: string
+          format: password
+          nullable: true
+          minLength: 8
+
+    UserUpdate:
+      type: object
+      description: Admin-only user update
+      properties:
+        role:
+          type: string
+          enum: [user, admin]
+          nullable: true
+        name:
+          type: string
+          nullable: true
+
+    UserListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    UserSettings:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        model:
+          type: string
+          nullable: true
+          description: Override the default model for this user
+        max_concurrent_runs:
+          type: integer
+          nullable: true
+          description: Override the default max concurrent runs for this user
+
+    UserSettingsUpdate:
+      type: object
+      description: Partial update — provide only fields to change
+      properties:
+        model:
+          type: string
+          nullable: true
+          description: Override the default model for this user
+        max_concurrent_runs:
+          type: integer
+          nullable: true
+          description: Override the default max concurrent runs for this user
+
+    InviteCode:
+      type: object
+      required: [id, code, created_by_admin_id, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          description: The invite code string
+        created_by_admin_id:
+          type: string
+          format: uuid
+        used_by_user_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The user who used this invite code (null if unused)
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Expiration time (null means no expiration)
+
+    InviteCodeCreate:
+      type: object
+      properties:
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Optional expiration time for the invite code
+
+    InviteCodeListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InviteCode'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
     HealthStatus:
       type: object
       required: [status, timestamp]
@@ -1613,6 +2086,14 @@ components:
         uptime_seconds:
           type: integer
           nullable: true
+        database:
+          type: string
+          enum: [connected, disconnected]
+          description: Database connection status
+        llm_provider:
+          type: string
+          enum: [connected, disconnected]
+          description: LLM provider connection status
 
     QueueStatus:
       type: object
@@ -1639,6 +2120,12 @@ components:
               max_concurrent:
                 type: integer
           description: Per-agent-type queue breakdown
+          nullable: true
+        per_user_active_runs:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Active run counts per user ID
           nullable: true
 
     SSEEvent:
