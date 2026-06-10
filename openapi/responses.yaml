@@ -1,0 +1,27 @@
+BadRequest:
+  description: Invalid request
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/error.yaml#/Error'
+
+Unauthorized:
+  description: Missing or invalid API key
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/error.yaml#/Error'
+
+NotFound:
+  description: Resource not found
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/error.yaml#/Error'
+
+Conflict:
+  description: Conflict (e.g., cannot cancel completed run)
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/error.yaml#/Error'
