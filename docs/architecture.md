@@ -1,8 +1,8 @@
 # ANTS Architecture Document
 
 > **Status**: Canonical Reference — All development decisions must align with this document.
-> **Last Updated**: 2026-06
-> **Version**: 1.0-draft
+> **Last Updated**: 2026-06-10
+> **Version**: 1.1-draft
 
 ---
 
@@ -17,6 +17,9 @@
 7. [V1 Scope](#7-v1-scope)
 8. [Future Extensions](#8-future-extensions)
 9. [Project Structure](#9-project-structure)
+10. [Tool Execution Model](#10-tool-execution-model)
+11. [Context Compaction](#11-context-compaction)
+12. [Error Handling](#12-error-handling)
 
 ---
 
@@ -782,6 +785,238 @@ flowchart TD
 
 ---
 
+## 10. Tool Execution Model
+
+ANTS agents invoke tools to perform actions. The tool execution model defines the lifecycle, safety boundaries, and error semantics for all tool invocations. See ADR-019 for the full decision record.
+
+### Execution Lifecycle
+
+Every tool invocation progresses through explicit phases:
+
+```
+pending → validating → executing → completed | failed | timed_out
+```
+
+- **pending**: Tool call created but not yet processed
+- **validating**: Arguments checked against the tool's JSON Schema
+- **executing**: Tool actively running
+- **completed**: Success — result available
+- **failed**: Error during execution or validation
+- **timed_out**: Execution exceeded the configured timeout
+
+These phases are visible in `ToolCall.status` and `RunStep.status`, giving clients full observability.
+
+### Execution Constraints
+
+| Constraint | Value | Rationale |
+|-----------|-------|-----------|
+| **Synchronous execution** | v1 only | Run blocks until tool returns or times out; async deferred |
+| **Same-process execution** | v1 only | No sandboxing; tools are trusted system code |
+| **Per-tool timeout** | Default 30s, configurable via `tool_timeout_seconds` | Prevents runaway tools from blocking the system |
+| **Output size limit** | Default 10K chars, configurable via `max_output_chars` | Protects LLM context window from oversized results |
+
+### Tool Output Contract
+
+All tools accept input validated against a JSON Schema (`parameters_schema` on the Tool entity). All tools return a standardised output shape:
+
+```typescript
+interface ToolOutput {
+  output: unknown | null;   // Result on success, null on failure
+  error?: string;           // Human-readable error description on failure
+}
+```
+
+### Error-as-Result Pattern
+
+Tool errors — timeout, permission denial, invalid arguments, execution failure — are returned to the LLM as tool results in the `{ output: null, error: "..." }` shape. The RunStep status becomes `failed`, but the **Run continues**. The LLM receives the error and decides how to proceed: retry, try a different tool, or inform the user. Only catastrophic failures (LLM crash) cause a Run to fail.
+
+### Permission Enforcement
+
+When an LLM generates a tool call, the system checks whether the requested tool is in the agent's `tool_ids` list. If the LLM hallucinates a tool outside this list, the step fails with `{ output: null, error: "Permission denied: tool 'X' is not available to this agent" }`. This is fed back to the LLM for self-correction.
+
+### Output Truncation
+
+When tool output exceeds `max_output_chars`, it is truncated and appended with a marker: `[Result truncated from X characters]`. Truncation is lossy but transparent — the LLM sees the marker and knows data was cut.
+
+### Tool Execution Flow
+
+```mermaid
+sequenceDiagram
+    participant Agent as Agent (LLM)
+    participant Executor as Run Executor
+    participant Tool as Tool Implementation
+    
+    Agent->>Executor: Tool call (name, arguments)
+    Executor->>Executor: Check permission (tool in tool_ids?)
+    alt Permission denied
+        Executor-->>Agent: { output: null, error: "Permission denied..." }
+    else Permission granted
+        Executor->>Executor: Validate args against parameters_schema
+        alt Invalid arguments
+            Executor-->>Agent: { output: null, error: "Invalid arguments..." }
+        else Valid arguments
+            Executor->>Tool: execute(arguments)
+            alt Timeout
+                Executor-->>Agent: { output: null, error: "Timed out after 30s" }
+            else Success
+                Tool-->>Executor: result
+                Executor->>Executor: Truncate if > max_output_chars
+                Executor-->>Agent: { output: result }
+            else Failure
+                Tool-->>Executor: error
+                Executor-->>Agent: { output: null, error: "..." }
+            end
+        end
+    end
+```
+
+---
+
+## 11. Context Compaction
+
+ANTS agents operate within finite LLM context windows. The context compaction system manages context size to preserve conversation coherence while staying within token budgets. See ADR-020 for the full decision record.
+
+### Token Budget
+
+All agent tiers share the same token budget:
+
+| Parameter | Value |
+|-----------|-------|
+| **Context window** | 32K tokens |
+| **Reserved for response** | ~8K tokens |
+| **Available for input** | ~24K tokens |
+| **Compaction trigger** | 80% of input budget (~19.2K tokens) |
+
+The 32K window is based on the primary Ollama model's context size. If a different model is used, the budget adjusts accordingly.
+
+### Context Isolation Between Tiers
+
+When a T1 orchestrator delegates to a T2 specialist, or a T2 delegates to a T3 task agent, the delegator does **not** pass its full conversation context. Each agent builds its own context from its own conversation. The orchestrator decides what to include in the task prompt for sub-agents. This prevents context cascading and keeps each agent's context independent.
+
+### Two-Stage Compaction Algorithm
+
+**Stage 1 — Remove old tool results** (zero cost):
+- Tool results older than the last N turns (default 3, configurable via `compaction_turns` setting) are replaced with a placeholder: `[Tool result for <tool_name> removed — older than 3 turns]`
+- The LLM already acted on those results; only the fact that a tool was called matters
+
+**Stage 2 — LLM summarisation** (requires LLM call):
+- If still over budget after Stage 1, the oldest messages (system prompt excluded) are sent to the LLM with a summarisation prompt
+- They are replaced with a single `{"role": "system", "content": "Conversation summary: <summary>"}` message
+- More expensive but preserves coherence; only fires when Stage 1 is insufficient
+
+### Compaction Flow
+
+```mermaid
+flowchart TD
+    Start[Before LLM call] --> Count[Estimate token count]
+    Count --> Over{> 80% of budget?}
+    Over -->|No| Call[Make LLM call]
+    Over -->|Yes| S1[Stage 1: Remove tool results older than N turns]
+    S1 --> Recount[Re-estimate token count]
+    Recount --> StillOver{Still > 80%?}
+    StillOver -->|No| Call
+    StillOver -->|Yes| S2[Stage 2: LLM summarise oldest messages]
+    S2 --> Call
+
+    style Start fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    style Call fill:#7ed321,stroke:#5a9a18,color:#fff
+    style S1 fill:#f5a623,stroke:#c07d10,color:#fff
+    style S2 fill:#bd10e0,stroke:#9013fe,color:#fff
+```
+
+### Token Estimation
+
+Token counting uses a character-to-token ratio of approximately 4 characters per token. This is fast, requires no external library, and is sufficiently accurate for budget estimation. Exact token counting (using the model's tokenizer) is deferred to a future version. The estimate is conservative — overcounting triggers compaction slightly earlier, which is safe.
+
+### Transparency to Agents
+
+Compaction is transparent to agents. The compaction service is invoked by the run executor before each LLM call. Agents never call compaction directly, never configure it, and never see the compacted context — they interact with the same message list API.
+
+### Proactive Context Reduction
+
+Consistent with the Tool Execution Model (Section 10), each tool result is capped at 10,000 characters at execution time (before entering the conversation). Truncation appends a `[Result truncated from X characters]` marker. This reduces context pressure proactively, before compaction is needed.
+
+---
+
+## 12. Error Handling
+
+ANTS has multiple error-producing surfaces, each requiring distinct handling strategies. The error model ensures consistent, predictable error propagation across the API, LLM, and tool layers. See ADR-021 for the full decision record.
+
+### Three Error Tiers
+
+| Tier | Scope | Propagation | Example |
+|------|-------|-------------|---------|
+| **API errors** | HTTP request/response | Returned to client immediately with HTTP status code | 400 Bad Request, 401 Unauthorized |
+| **LLM errors** | Run | Run status → `failed` after retries exhausted | Model unavailable, OOM, inference timeout |
+| **Tool errors** | RunStep | Step status → `failed`, error returned to LLM as tool result | Timeout, invalid args, permission denied |
+
+### API Error Codes
+
+| Status | Code | Description |
+|--------|------|-------------|
+| 400 | `BAD_REQUEST` | Malformed request body or parameters |
+| 401 | `UNAUTHORIZED` | Missing or invalid API key |
+| 404 | `NOT_FOUND` | Resource not found |
+| 409 | `CONFLICT` | Conflict (e.g., cancelling a completed run) |
+| 422 | `VALIDATION_ERROR` | Zod schema violation |
+| 429 | `RATE_LIMIT_EXCEEDED` | Rate limit exceeded (includes `Retry-After`) |
+| 500 | `INTERNAL_ERROR` | Internal server error |
+
+All API errors use the standard `{ error: { code, message, details } }` shape.
+
+### Tool Error Codes
+
+Tool errors are returned to the LLM as tool results (not run failures) with machine-readable codes:
+
+| Code | Description |
+|------|-------------|
+| `TOOL_TIMEOUT` | Tool execution exceeded `tool_timeout_seconds` |
+| `TOOL_INVALID_ARGUMENTS` | Arguments failed JSON Schema validation |
+| `TOOL_PERMISSION_DENIED` | Tool not in agent's `tool_ids` list |
+| `TOOL_EXECUTION_FAILED` | Unhandled error during tool execution |
+| `TOOL_OUTPUT_TRUNCATED` | Output exceeded `max_output_chars` and was truncated |
+
+### Retry Strategy
+
+| Error Tier | Retry | Strategy |
+|-----------|-------|----------|
+| **LLM errors** | Yes | Exponential backoff: 2s, 4s, 8s (max 3 retries). Per LLM call within a run. |
+| **Tool errors** | No | Error returned to LLM as tool result. LLM decides whether to retry. |
+| **API errors** | No | Client receives error and decides whether to retry. |
+| **Invalid LLM response** | Yes (1x) | Retry with modified prompt: "Your previous response was invalid." |
+
+### Error Propagation Flow
+
+```mermaid
+flowchart TD
+    APIErr[API Error] -->|HTTP status + Error schema| Client[Client]
+    
+    LLMErr[LLM Inference Error] --> Retry{Retries remaining?}
+    Retry -->|Yes| Backoff[Wait: 2s/4s/8s] --> RetryCall[Retry LLM call]
+    RetryCall --> LLMErr
+    Retry -->|No| RunFailed[Run status → failed] --> SSE[SSE: run.failed event]
+    
+    ToolErr[Tool Execution Error] --> StepFailed[Step status → failed]
+    StepFailed --> ToolResult[Error as tool result: {output: null, error: "..."}]
+    ToolResult --> LLM[LLM receives error]
+    LLM -->|Self-correct| LLM
+    
+    InvalidResp[Invalid LLM Response] --> RetryOnce{1 retry with modified prompt?}
+    RetryOnce -->|Yes| RetryCall2[Retry LLM call]
+    RetryOnce -->|No / Still invalid| RunFailed
+
+    style APIErr fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    style LLMErr fill:#f5a623,stroke:#c07d10,color:#fff
+    style ToolErr fill:#7ed321,stroke:#5a9a18,color:#fff
+    style RunFailed fill:#d0021b,stroke:#9b1015,color:#fff
+```
+
+### Partial Tool Failures
+
+When an agent makes multiple tool calls in a single turn, each tool call is a separate RunStep with its own status. If tool A succeeds and tool B fails, tool A's step is `completed` and tool B's step is `failed`. The Run continues. The LLM receives both results and decides how to proceed. There is no "all-or-nothing" tool execution semantics.
+
+---
+
 ## Appendix A: Key Architectural Decisions
 
 | Decision | Choice | Rationale |
@@ -796,6 +1031,20 @@ flowchart TD
 | Local inference only | Yes | Privacy constraint; nothing leaves the machine |
 | Agent/Tool registries from v1 | Yes | Extension requires discoverability from day one |
 | Queueing over rejection | Yes | LLM inference is slow; queue protects users from lost work |
+| Tool execution lifecycle | Phase-based (pending → validating → executing → completed/failed/timed_out) | Full observability into tool execution progress; enables async extension later |
+| Tool output contract | Standardised `{ output: any, error?: string }` | Consistent LLM-parseable results across all tools |
+| Tool errors as results | Yes | LLM self-corrects instead of failing entire runs |
+| Per-tool timeout | Yes (default 30s) | Prevents runaway tools from blocking the system |
+| Tool output size limit | Yes (default 10K chars) | Protects LLM context window from oversized results |
+| Same token budget for all tiers | Yes (32K, ~24K input) | Simplifies implementation; no data yet for tier-specific budgets |
+| Two-stage compaction | Yes (remove old tool results → summarise) | Balances cost and coherence; Stage 1 is free, Stage 2 preserves context |
+| Context isolation between tiers | Yes | Prevents context cascading; each agent manages its own window |
+| Three-tier error model | Yes (API / LLM / Tool) | Each surface has distinct propagation and handling |
+| LLM error retry | Exponential backoff (2s, 4s, 8s, max 3) | Handles transient inference failures gracefully |
+| Tool error retry | No (returned to LLM) | LLM decides whether to retry; system doesn't auto-retry tool errors |
+| Tool execution model | Phase-based lifecycle, sync, same-process | Standardised output, error-as-result, per-tool timeout, permission enforcement |
+| Context compaction | Same budget/algorithm all tiers, two-stage | 32K/8K budget, 80% trigger, tool result removal then LLM summarisation |
+| Error handling model | Three-tier (API/LLM/tool) | LLM errors retry with backoff, tool errors feed to LLM, partial failures independent |
 
 ---
 
@@ -814,6 +1063,9 @@ flowchart TD
 | **T2** | Specialist tier — domain experts that can delegate and converse |
 | **T3** | Task tier — single-purpose agents that can clarify but not delegate |
 | **Tool** | A registered capability that agents can invoke |
+| **ToolCall** | A specific invocation of a tool within a RunStep |
+| **Compaction** | Process of reducing context size by removing old tool results and summarising messages |
+| **ToolExecutionError** | Standardised error shape for tool execution failures |
 | **Ollama** | Local LLM inference engine used as the default provider |
 | **pgvector** | PostgreSQL extension for vector similarity search |
 

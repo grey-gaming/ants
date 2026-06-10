@@ -895,6 +895,58 @@ components:
               additionalProperties: true
               description: Additional error context
 
+    ErrorCode:
+      type: string
+      enum:
+        - BAD_REQUEST
+        - UNAUTHORIZED
+        - NOT_FOUND
+        - CONFLICT
+        - VALIDATION_ERROR
+        - RATE_LIMIT_EXCEEDED
+        - INTERNAL_ERROR
+        - TOOL_TIMEOUT
+        - TOOL_NOT_FOUND
+        - TOOL_INVALID_ARGUMENTS
+        - TOOL_OUTPUT_TRUNCATED
+        - TOOL_PERMISSION_DENIED
+        - TOOL_EXECUTION_FAILED
+
+    ToolExecutionError:
+      type: object
+      description: Error details specific to tool execution failures
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - TOOL_TIMEOUT
+                - TOOL_NOT_FOUND
+                - TOOL_INVALID_ARGUMENTS
+                - TOOL_OUTPUT_TRUNCATED
+                - TOOL_PERMISSION_DENIED
+                - TOOL_EXECUTION_FAILED
+              description: Tool-specific error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: object
+              additionalProperties: true
+              nullable: true
+              description: Additional error context (e.g., schema validation errors for TOOL_INVALID_ARGUMENTS)
+            tool_id:
+              type: string
+              format: uuid
+              description: ID of the tool that failed
+            tool_name:
+              type: string
+              description: Name of the tool that failed
+
     Pagination:
       type: object
       properties:
@@ -1093,7 +1145,7 @@ components:
 
     RunStepStatus:
       type: string
-      enum: [in_progress, completed, failed]
+      enum: [pending, validating, executing, completed, failed, timed_out]
 
     RunStep:
       type: object
@@ -1161,7 +1213,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [in_progress, completed, failed]
+          enum: [pending, validating, executing, completed, failed, timed_out]
         created_at:
           type: string
           format: date-time
@@ -1195,6 +1247,10 @@ components:
           type: object
           additionalProperties: true
           nullable: true
+        context_budget:
+          type: integer
+          default: 24000
+          description: Token budget for input context (32K window minus ~8K response reserve)
         capabilities:
           type: object
           additionalProperties: true
@@ -1232,6 +1288,10 @@ components:
           type: object
           additionalProperties: true
           nullable: true
+        context_budget:
+          type: integer
+          default: 24000
+          description: Token budget for input context (32K window minus ~8K response reserve)
         capabilities:
           type: object
           additionalProperties: true
@@ -1259,6 +1319,10 @@ components:
           type: object
           additionalProperties: true
           nullable: true
+        context_budget:
+          type: integer
+          nullable: true
+          description: Token budget for input context (32K window minus ~8K response reserve)
         capabilities:
           type: object
           additionalProperties: true
@@ -1302,6 +1366,14 @@ components:
           type: object
           additionalProperties: true
           nullable: true
+        tool_timeout_seconds:
+          type: integer
+          default: 30
+          description: Maximum execution time in seconds before the tool is timed out
+        max_output_chars:
+          type: integer
+          default: 10000
+          description: Maximum output size in characters; truncated results include a marker
         active:
           type: boolean
         created_at:
@@ -1328,6 +1400,14 @@ components:
           type: object
           additionalProperties: true
           nullable: true
+        tool_timeout_seconds:
+          type: integer
+          default: 30
+          description: Maximum execution time in seconds before the tool is timed out
+        max_output_chars:
+          type: integer
+          default: 10000
+          description: Maximum output size in characters; truncated results include a marker
 
     ToolUpdate:
       type: object
@@ -1346,6 +1426,14 @@ components:
           type: object
           additionalProperties: true
           nullable: true
+        tool_timeout_seconds:
+          type: integer
+          nullable: true
+          description: Maximum execution time in seconds before the tool is timed out
+        max_output_chars:
+          type: integer
+          nullable: true
+          description: Maximum output size in characters; truncated results include a marker
 
     ToolListResponse:
       type: object
@@ -1362,11 +1450,21 @@ components:
       type: object
       description: Key-value settings pairs
       additionalProperties: true
+      properties:
+        compaction_turns:
+          type: integer
+          default: 3
+          description: Number of recent turns to retain tool results for during context compaction
 
     SettingsUpdate:
       type: object
       description: Partial update — provide only keys to change
       additionalProperties: true
+      properties:
+        compaction_turns:
+          type: integer
+          nullable: true
+          description: Number of recent turns to retain tool results for during context compaction
 
     SettingItem:
       type: object
