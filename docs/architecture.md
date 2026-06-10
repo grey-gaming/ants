@@ -557,102 +557,214 @@ These are planned or anticipated extensions that the v1 architecture must accomm
 
 ## 9. Project Structure
 
+ANTS uses a **Bun workspace monorepo** with scoped `@ants/` packages. This structure enforces architectural boundaries at the package dependency level rather than relying solely on convention. The configuration-driven registry pattern — where database tables determine which agents and tools are active — is the key architectural mechanism. See ADR-017 for the full decision record.
+
+### Directory Tree
+
 ```
 ants/
 ├── docs/
 │   ├── architecture.md          # This document
-│   ├── api-spec.md               # API design notes (complements OpenAPI spec)
-│   └── decisions/                # Architecture Decision Records (ADRs)
-│       ├── 001-typescript-bun.md
-│       ├── 002-hono-framework.md
-│       ├── 003-conversational-agents.md
+│   ├── testing-strategy.md     # Testing approach and conventions
+│   └── adrs/                   # Architecture Decision Records
+│       ├── 001-language-typescript.md
+│       ├── 002-runtime-bun.md
 │       └── ...
 ├── openapi/
-│   └── v1.yaml                   # OpenAPI 3.1 specification
-├── src/
-│   ├── index.ts                  # Entry point (Bun.serve or Hono app)
-│   ├── api/
-│   │   ├── routes/
-│   │   │   ├── threads.ts         # Thread CRUD endpoints
-│   │   │   ├── messages.ts        # Message endpoints
-│   │   │   ├── runs.ts            # Run endpoints + streaming
-│   │   │   ├── agent-types.ts     # Agent registry endpoints
-│   │   │   ├── tools.ts           # Tool registry endpoints
-│   │   │   ├── queue.ts           # Queue inspection endpoints
-│   │   │   └── auth.ts            # API key management endpoints
-│   │   ├── middleware/
-│   │   │   ├── auth.ts            # API key validation
-│   │   │   ├── rate-limit.ts      # Rate limiting
-│   │   │   ├── error-handler.ts   # Global error handling
-│   │   │   └── request-logging.ts # Request/response logging
-│   │   └── app.ts                 # Hono app assembly
-│   ├── agents/
-│   │   ├── orchestrator.ts        # T1 orchestrator agent
-│   │   ├── research.ts            # T3 research task agent
-│   │   ├── base-agent.ts          # Abstract base agent class
-│   │   └── registry.ts            # Agent type registry
-│   ├── models/
-│   │   ├── schema.ts              # Drizzle schema definitions
-│   │   ├── user.ts                # User model
-│   │   ├── thread.ts              # Thread model
-│   │   ├── message.ts             # Message model
-│   │   ├── run.ts                 # Run model
-│   │   ├── run-step.ts            # RunStep model
-│   │   ├── agent-type.ts          # AgentType model
-│   │   └── tool.ts                # Tool model
-│   ├── services/
-│   │   ├── thread-service.ts      # Thread business logic
-│   │   ├── message-service.ts     # Message business logic
-│   │   ├── run-service.ts         # Run orchestration logic
-│   │   ├── agent-service.ts       # Agent resolution and selection
-│   │   └── queue-service.ts       # Queue management
-│   ├── tools/
-│   │   ├── base-tool.ts           # Abstract base tool class
-│   │   ├── web-search.ts          # Web search tool implementation
-│   │   └── registry.ts            # Tool registry
-│   ├── llm/
-│   │   ├── provider.ts            # LLM provider interface
-│   │   ├── ollama.ts               # Ollama provider implementation
-│   │   └── stream.ts               # Streaming utilities
-│   ├── queue/
-│   │   ├── queue.ts               # Priority queue implementation
-│   │   ├── scheduler.ts            # Run scheduler and concurrency manager
-│   │   └── types.ts               # Queue types and interfaces
-│   ├── auth/
-│   │   ├── api-key.ts              # API key generation and validation
-│   │   └── rls.ts                  # Row-level security enforcement
-│   └── lib/
-│       ├── errors.ts               # Error types and factories
-│       ├── logger.ts               # Structured logging
-│       ├── config.ts               # Configuration management
-│       └── utils.ts                # Shared utilities
+│   └── v1.yaml                  # OpenAPI 3.1 specification
+├── packages/
+│   ├── core/                    # @ants/core — depends on @ants/store
+│   │   ├── src/
+│   │   │   ├── services/
+│   │   │   │   ├── thread-service.ts  # Thread business logic
+│   │   │   │   ├── message-service.ts # Message business logic
+│   │   │   │   ├── run-service.ts    # Run orchestration logic
+│   │   │   │   ├── agent-service.ts # Agent resolution and selection
+│   │   │   │   └── queue-service.ts  # Queue management
+│   │   │   ├── auth/
+│   │   │   │   ├── api-key.ts        # API key generation and validation
+│   │   │   │   └── rls.ts            # Row-level security enforcement
+│   │   │   └── lib/
+│   │   │       ├── errors.ts         # Error types and factories
+│   │   │       ├── logger.ts         # Structured logging
+│   │   │       ├── config.ts         # Configuration management
+│   │   │       └── utils.ts          # Shared utilities
+│   │   └── package.json
+│   ├── api/                     # @ants/api — depends on all packages
+│   │   ├── src/
+│   │   │   ├── index.ts           # Entry point (Bun.serve or Hono app)
+│   │   │   ├── routes/
+│   │   │   │   ├── threads.ts     # Thread CRUD endpoints
+│   │   │   │   ├── messages.ts    # Message endpoints
+│   │   │   │   ├── runs.ts        # Run endpoints + streaming
+│   │   │   │   ├── agent-types.ts # Agent registry endpoints
+│   │   │   │   ├── tools.ts       # Tool registry endpoints
+│   │   │   │   ├── queue.ts      # Queue inspection endpoints
+│   │   │   │   └── auth.ts       # API key management endpoints
+│   │   │   ├── middleware/
+│   │   │   │   ├── auth.ts        # API key validation
+│   │   │   │   ├── rate-limit.ts  # Rate limiting
+│   │   │   │   ├── error-handler.ts # Global error handling
+│   │   │   │   └── request-logging.ts # Request/response logging
+│   │   │   ├── schemas/
+│   │   │   │   └── ...            # Zod request/response schemas
+│   │   │   └── app.ts            # Hono app assembly + registry wiring
+│   │   └── package.json
+│   ├── agents/                  # @ants/agents — depends on @ants/core only
+│   │   ├── src/
+│   │   │   ├── orchestrator.ts      # T1 orchestrator agent
+│   │   │   ├── research.ts          # T3 research task agent
+│   │   │   ├── base-agent.ts       # Abstract base agent class
+│   │   │   └── registry.ts         # Agent type registry
+│   │   └── package.json
+│   ├── tools/                   # @ants/tools — depends on @ants/core only
+│   │   ├── src/
+│   │   │   ├── base-tool.ts        # Abstract base tool class
+│   │   │   ├── web-search.ts      # Web search tool implementation
+│   │   │   └── registry.ts        # Tool registry
+│   │   └── package.json
+│   ├── llm/                     # @ants/llm — depends on @ants/core only
+│   │   ├── src/
+│   │   │   ├── provider.ts        # LLM provider interface
+│   │   │   ├── ollama.ts         # Ollama provider implementation
+│   │   │   └── stream.ts         # Streaming utilities
+│   │   └── package.json
+│   └── store/                   # @ants/store — no dependencies
+│       ├── src/
+│       │   ├── schema.ts          # Drizzle schema definitions
+│       │   └── migrations/        # Database migrations
+│       └── package.json
 ├── tests/
-│   ├── unit/                       # Unit tests
-│   ├── integration/                 # Integration tests
-│   └── e2e/                         # End-to-end tests
-├── drizzle/
-│   └── migrations/                 # Database migrations
-├── .env.example                    # Environment variable template
+│   ├── integration/             # Integration tests (real Ollama, real PostgreSQL)
+│   ├── contract/                # OpenAPI spec conformance tests
+│   └── helpers/                 # test-db.ts, seed.ts, mock-provider.ts, fixtures.ts
+├── drizzle/                     # Database migrations (output from @ants/store)
+├── .env.example                 # Environment variable template
 ├── .gitignore
-├── bunfig.toml                     # Bun configuration
-├── drizzle.config.ts               # Drizzle Kit configuration
-├── package.json
+├── bunfig.toml                  # Bun configuration
+├── drizzle.config.ts            # Drizzle Kit configuration
+├── package.json                 # Root workspace config
 └── tsconfig.json
+```
+
+### Package Descriptions
+
+| Package | Name | Depends On | Contains |
+|---------|------|-----------|----------|
+| `packages/store` | `@ants/store` | — | Drizzle schema, model query helpers, migrations. Drizzle config lives here. |
+| `packages/core` | `@ants/core` | `@ants/store` | Services, auth, queue logic, errors, config, interface contracts for agents/tools/LLM. |
+| `packages/agents` | `@ants/agents` | `@ants/core` | T1 orchestrator, T3 research agent, base-agent, agent registry. |
+| `packages/tools` | `@ants/tools` | `@ants/core` | Web search tool, base-tool, tool registry. |
+| `packages/llm` | `@ants/llm` | `@ants/core` | LLM provider interface, Ollama provider, streaming utilities. |
+| `packages/api` | `@ants/api` | All packages | Hono routes, middleware, schemas, app assembly, entry point. Composition root. |
+
+### Dependency Flow Rules
+
+The monorepo enforces a strict, acyclic dependency DAG:
+
+1. **`@ants/store` depends on nothing.** It is the data foundation — schema, models, migrations. No cross-package imports.
+2. **`@ants/core` depends only on `@ants/store`.** It contains services, auth, queue logic, and interface contracts for agents/tools/LLM. Core never imports from agents, tools, or llm packages.
+3. **`@ants/agents`, `@ants/tools`, and `@ants/llm` depend only on `@ants/core`.** They never import from each other or from `@ants/api`. This keeps implementations decoupled from the HTTP layer and from each other.
+4. **`@ants/api` depends on all other packages.** It is the composition root that wires agents, tools, and LLM into the Hono HTTP server. It never contains business logic — only routing and wiring.
+
+Violations are caught at build time: a package that imports from an undeclared dependency fails TypeScript compilation.
+
+### Configuration-Driven Registry
+
+Agent and tool registries are populated from database configuration, not from hardcoded imports. This is a key architectural decision that decouples the API layer from the set of available agents and tools.
+
+At startup, `@ants/api` reads the `agent_types` and `tools` tables from PostgreSQL, matches each database entry to its implementation in `@ants/agents` or `@ants/tools`, and wires them into the running system. Adding a new agent or tool requires two steps only:
+
+1. **Implement** the agent or tool in the correct package (`@ants/agents` or `@ants/tools`).
+2. **Insert** a row in the corresponding database table (`agent_types` or `tools`).
+
+No changes to `@ants/api` are needed. The API layer discovers and wires new capabilities automatically from the database.
+
+```mermaid
+flowchart LR
+    DB[(PostgreSQL<br/>agent_types table<br/>tools table)]
+    API["@ants/api<br/>reads registry at startup"]
+    AGENTS["@ants/agents<br/>implementation packages"]
+    TOOLS["@ants/tools<br/>implementation packages"]
+    REQ[Incoming HTTP Request]
+
+    DB -->|config rows| API
+    AGENTS -->|register implementations| API
+    TOOLS -->|register implementations| API
+    API -->|route + wire| REQ
+
+    style DB fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    style API fill:#f5a623,stroke:#c07d10,color:#fff
+    style AGENTS fill:#7ed321,stroke:#5a9a18,color:#fff
+    style TOOLS fill:#7ed321,stroke:#5a9a18,color:#fff
+    style REQ fill:#bd10e0,stroke:#9013fe,color:#fff
+```
+
+### Data Flow Diagram
+
+The following diagram shows how a request flows through the package layers, with the configuration-driven registry at the center:
+
+```mermaid
+flowchart TD
+    Client[Client Request] --> API["@ants/api<br/>Hono Routes + Middleware"]
+    API --> Core["@ants/core<br/>Services + Auth"]
+    Core --> Store["@ants/store<br/>Schema + Queries"]
+    Store --> DB[(PostgreSQL)]
+
+    API -->|wire at startup| Registry[Config-Driven Registry]
+    DB -->|agent_types + tools rows| Registry
+    Registry -->|resolve| Agents["@ants/agents<br/>Agent Implementations"]
+    Registry -->|resolve| Tools["@ants/tools<br/>Tool Implementations"]
+    Agents --> Core
+    Tools --> Core
+    Core --> LLM["@ants/llm<br/>Provider Interface"]
+    LLM --> Ollama[Ollama]
+
+    subgraph "Data Layer"
+        Store
+        DB
+    end
+
+    subgraph "Core Layer"
+        Core
+    end
+
+    subgraph "Implementation Layer"
+        Agents
+        Tools
+        LLM
+        Ollama
+    end
+
+    subgraph "Composition Root"
+        API
+        Registry
+    end
+
+    style Client fill:#bd10e0,stroke:#9013fe,color:#fff
+    style API fill:#f5a623,stroke:#c07d10,color:#fff
+    style Core fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    style Store fill:#50e3c2,stroke:#2ca089,color:#fff
+    style Agents fill:#7ed321,stroke:#5a9a18,color:#fff
+    style Tools fill:#7ed321,stroke:#5a9a18,color:#fff
+    style LLM fill:#7ed321,stroke:#5a9a18,color:#fff
+    style DB fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    style Registry fill:#f5a623,stroke:#c07d10,color:#fff
+    style Ollama fill:#7ed321,stroke:#5a9a18,color:#fff
 ```
 
 ### Directory Rationale
 
-- **`docs/`**: Architecture, decisions, and API design notes. ADRs (Architecture Decision Records) capture why choices were made.
+- **`packages/store/`**: Data foundation with no dependencies. Contains Drizzle schema definitions, per-entity model query helpers, and migration files. Everything that reads or writes to PostgreSQL starts here.
+- **`packages/core/`**: Business logic and interface contracts. Depends only on store for data access. Services, auth, queue logic, and shared utilities live here. Defines the interface contracts that agents, tools, and LLM implement — core never imports from those packages.
+- **`packages/agents/`**: Agent implementations. Each agent extends `BaseAgent` with a `converse()` method. The registry maps database entries to implementations. Depends only on core for services, models, and LLM access.
+- **`packages/tools/`**: Tool implementations. Each tool extends `BaseTool` with an `execute()` method. The registry maps database entries to implementations. Depends only on core.
+- **`packages/llm/`**: LLM provider abstraction. The `provider.ts` interface lets us swap Ollama for other providers without changing agent code. Depends only on core for configuration and error types.
+- **`packages/api/`**: HTTP layer and composition root. Routes are thin handlers that validate input and call services. The `app.ts` module reads the database registry and wires agents + tools into the system at startup. Depends on all other packages but contains no business logic.
+- **`docs/`**: Architecture, decisions, and API design notes. ADRs capture why choices were made.
 - **`openapi/`**: The OpenAPI spec lives here as a YAML file. This is the source of truth for the API.
-- **`src/api/`**: All HTTP concerns — routes, middleware, app assembly. No business logic here.
-- **`src/agents/`**: Agent implementations. Each agent is a class extending `BaseAgent` with a `converse()` method.
-- **`src/models/`**: Drizzle schema and model-specific query helpers. One file per entity.
-- **`src/services/`**: Business logic layer. Services are called by routes and call models/agents/tools.
-- **`src/tools/`**: Tool implementations. Each tool extends `BaseTool` with an `execute()` method.
-- **`src/llm/`**: Provider abstraction. The `provider.ts` interface lets us swap Ollama for other providers without changing agent code.
-- **`src/queue/`**: Concurrency management, scheduling, and priority queue. Uses PostgreSQL for state.
-- **`src/auth/`**: API key management and row-level security.
-- **`src/lib/`**: Shared utilities with no business logic dependencies.
+- **`tests/`**: Integration tests (real Ollama + PostgreSQL), contract tests (OpenAPI conformance), and test helpers. Unit tests are co-located with source files inside each package.
+- **`drizzle/`**: Database migration output directory. Drizzle config lives in `@ants/store` but migration output goes here at the repo root.
 
 ---
 

@@ -115,37 +115,26 @@ Tests use Bun's built-in test runner, Hono `app.request()` for HTTP testing, `mo
 
 ## Project Structure
 
+ANTS uses a Bun workspace monorepo with scoped `@ants/` packages. See [ADR-017](docs/adrs/017-repository-structure.md) for the full rationale.
+
 ```
 ants/
-├── docs/                     # Architecture, decisions, testing strategy
-│   ├── architecture.md       # Canonical architecture document
-│   ├── testing-strategy.md   # Testing approach and conventions
-│   └── adrs/                 # Architecture Decision Records
-├── openapi/                  # OpenAPI 3.1 specification (YAML)
-├── src/
-│   ├── index.ts              # Entry point
-│   ├── api/                  # HTTP layer (routes, middleware, app assembly)
-│   ├── agents/               # Agent implementations (T1 orchestrator, T3 research)
-│   ├── models/               # Drizzle schema and model query helpers
-│   ├── services/             # Business logic layer
-│   ├── tools/                # Tool implementations (web search, registry)
-│   ├── llm/                  # LLM provider abstraction (provider interface, Ollama)
-│   ├── queue/                # Priority queue, scheduler, concurrency manager
-│   ├── auth/                 # API key management and row-level security
-│   └── lib/                  # Shared utilities (errors, logger, config)
-├── tests/
-│   ├── integration/          # Integration tests (real Ollama, real PostgreSQL)
-│   ├── contract/             # OpenAPI spec conformance tests
-│   └── helpers/              # Test utilities (test-db, seed, mock-provider)
-├── drizzle/                  # Database migrations
-├── .env.example              # Environment variable template
-├── bunfig.toml               # Bun configuration (including test config)
-├── drizzle.config.ts         # Drizzle Kit configuration
-├── package.json
-└── tsconfig.json
+├── packages/
+│   ├── core/         # @ants/core — services, auth, config, errors, queue logic
+│   ├── api/          # @ants/api — HTTP layer, composition root
+│   ├── agents/       # @ants/agents — agent implementations + registry
+│   ├── tools/        # @ants/tools — tool implementations + registry
+│   ├── llm/          # @ants/llm — LLM provider abstraction
+│   └── store/        # @ants/store — Drizzle schema, migrations, queries
+├── openapi/          # OpenAPI 3.1 specification
+├── tests/            # Integration and contract tests
+├── docs/             # Architecture, ADRs, testing strategy
+└── drizzle/          # Database migrations
 ```
 
-For the full project structure with file-level detail, see [docs/architecture.md §9](docs/architecture.md).
+**Dependency flow**: `@ants/store` (no deps) ← `@ants/core` ← `{agents, tools, llm}` ← `@ants/api` (wires everything). Agents and tools are registered via database config, not hardcoded imports.
+
+For the full project structure with package descriptions, dependency rules, and data flow diagram, see [docs/architecture.md §9](docs/architecture.md).
 
 ---
 
@@ -177,3 +166,4 @@ For the full project structure with file-level detail, see [docs/architecture.md
 | 014 | Multi-user Auth with API Keys | API key auth with row-level security at the Drizzle query layer for data isolation |
 | 015 | Project Name - ANTS | ANTS = Autonomous Networked Task System; the orchestration engine (distinct from ANT assistant) |
 | 016 | Testing Strategy | Pragmatic test-first, Bun test runner, provider-level mocking, testcontainers, 80-90% coverage |
+| 017 | Repository Structure | Bun workspace monorepo with @ants/* packages, strict dependency DAG, config-driven registries |
