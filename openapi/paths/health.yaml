@@ -1,0 +1,29 @@
+/health:
+  get:
+    tags: [Health]
+    operationId: healthCheck
+    summary: Health check
+    description: Intentionally public (no auth required) for monitoring and load balancer probes.
+    security: []
+    responses:
+      '200':
+        description: System health status
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/health.yaml#/HealthStatus'
+
+/health/queue:
+  get:
+    tags: [Health]
+    operationId: queueStatus
+    summary: Queue status and concurrency info
+    responses:
+      '200':
+        description: Queue and concurrency status
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/health.yaml#/QueueStatus'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
