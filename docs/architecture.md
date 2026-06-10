@@ -20,6 +20,9 @@
 10. [Tool Execution Model](#10-tool-execution-model)
 11. [Context Compaction](#11-context-compaction)
 12. [Error Handling](#12-error-handling)
+13. [User Model & Authentication](#13-user-model--authentication)
+14. [Logging & Monitoring](#14-logging--monitoring)
+15. [Graceful Shutdown](#15-graceful-shutdown)
 
 ---
 
@@ -1017,6 +1020,220 @@ When an agent makes multiple tool calls in a single turn, each tool call is a se
 
 ---
 
+## 13. User Model & Authentication
+
+ANTS supports multi-user access with a full identity model covering registration, authentication, authorisation, and per-user configuration. See ADR-022 for the full decision record.
+
+### Email/Password Authentication
+
+Users authenticate with email and password. Passwords are hashed with bcrypt at cost factor 12. Email is the unique identifier — each email maps to exactly one user account.
+
+### Invite-Only Registration
+
+Registration is invite-only. Two paths exist:
+
+1. **Admin direct creation**: An admin creates a user via the API, providing email, password, and role.
+2. **Invite code self-registration**: An admin generates an invite code. A new user registers by providing the invite code along with email and password. Invite codes are single-use, optionally expire, and can be revoked before use.
+
+This prevents open sign-ups while allowing controlled onboarding.
+
+### Dual Auth Mechanism: JWT + API Keys
+
+ANTS supports two authentication mechanisms, both using the `Authorization` header as bearer tokens:
+
+| Auth Mechanism | Use Case | Properties |
+|---|---|---|
+| JWT | Interactive sessions | 24h expiry, role claims, re-auth to refresh |
+| API Key (`sk_` prefix) | Programmatic access | Persistent until revoked, looked up in DB |
+
+JWT tokens carry role claims (`user` or `admin`) and are issued upon login. They expire after 24 hours, requiring re-authentication to refresh. API keys are persistent bearer tokens with the `sk_` prefix, stored hashed in the database, and remain valid until explicitly revoked. Both mechanisms use the same `Authorization: Bearer <token>` header format.
+
+### Two Roles: User and Admin
+
+| Role | Permissions |
+|---|---|
+| user | Own data only: threads, messages, runs, API keys, settings |
+| admin | All user permissions + manage users, invite codes, all runs, agent/tool registries, global settings |
+
+No fine-grained RBAC in v1. The two-role model keeps authorisation simple while providing sufficient access control for the system's needs.
+
+### Per-User Settings
+
+| Setting | Type | Description |
+|---|---|---|
+| model_override | string (nullable) | Override default LLM model with any Ollama model |
+| max_concurrent_runs | integer (nullable) | Override global max concurrent runs |
+
+Per-user settings allow customisation without polluting the global configuration. A null value means the global default applies. **There are no token limits and no per-user run limits** — only concurrent run limits.
+
+### Row-Level Security
+
+Every database query is scoped by `user_id` at the Drizzle query layer. Users see only their own data — threads, messages, runs, API keys, and settings. Admins see all data across all users. This enforcement happens in the model/query layer, not just at the API level, ensuring consistent isolation regardless of access path.
+
+### Bootstrap CLI
+
+`ants bootstrap` is the entry point for fresh installations. It creates the first admin user (email + password) and outputs an initial API key. Without this command, there are no users in the system and therefore no way to authenticate. This ensures the system starts from a known, controlled state.
+
+---
+
+## 14. Logging & Monitoring
+
+ANTS emits structured JSON logs to stdout following the 12-factor app pattern. All observability is derived from these logs — no external dependencies are required. See ADR-023 for the full decision record.
+
+### Structured JSON to Stdout
+
+All logs are written as structured JSON to stdout. No file logging, no log rotation, no external shipping. Stdout logs can be consumed by external tools (Fluent Bit, Promtail, Loki, etc.) without application changes.
+
+### Consistent Log Schema
+
+Every log entry contains the same set of fields. Null fields are included as null rather than omitted, ensuring consistent parsing:
+
+```json
+{
+  "timestamp": "2026-06-10T12:34:56.789Z",
+  "level": "info",
+  "service": "api",
+  "trace_id": "abc123",
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "thread_id": null,
+  "run_id": null,
+  "agent_type": null,
+  "message": "Request completed",
+  "details": { "method": "GET", "path": "/v1/threads", "status": 200, "duration_ms": 45 }
+}
+```
+
+### Key Log Events
+
+| Event | Fields | Level |
+|---|---|---|
+| API requests | method, path, status, duration_ms | info |
+| LLM calls | model, prompt_tokens, completion_tokens, duration_ms | info |
+| Tool executions | tool_name, duration_ms, status | info |
+| Context compaction | stage, tokens_before, tokens_after | info |
+| Auth: login success | user_id, method (jwt/api_key) | info |
+| Auth: login failure | email, method, reason | warn |
+| API key validation | key_prefix, user_id | debug |
+| Invite code usage | invite_code_id, new_user_id | info |
+| Errors | all standard fields + stack trace | error |
+| Run state changes | run_id, from_status, to_status | info |
+
+### LOG_LEVEL Environment Variable
+
+| Level | Included | Use Case |
+|---|---|---|
+| debug | All logs | Development, detailed tracing |
+| info (default) | info, warn, error | Production |
+| warn | warn, error | Production warnings only |
+| error | error only | Minimal production logging |
+
+The `LOG_LEVEL` environment variable controls verbosity. Default is `info`. No per-service configuration in v1.
+
+### Enhanced Health Endpoints
+
+**`GET /v1/health`** returns:
+
+```json
+{
+  "status": "ok",
+  "version": "1.0.0",
+  "uptime_seconds": 86400,
+  "db": { "connected": true },
+  "ollama": { "connected": true, "model": "qwen3:35b" },
+  "memory": { "rss_mb": 256, "heap_mb": 128 }
+}
+```
+
+**`GET /v1/health/queue`** returns:
+
+```json
+{
+  "queued": 3,
+  "in_progress": 2,
+  "paused": 0,
+  "per_user": {
+    "550e8400-...": { "queued": 1, "in_progress": 1 }
+  }
+}
+```
+
+The `/v1/health/queue` endpoint requires admin authentication. Non-admin users receive 403.
+
+### No External Dependencies
+
+No OpenTelemetry, no Prometheus, no ELK stack. The structured JSON to stdout pattern keeps ANTS dependency-free for observability. External tooling can consume, filter, and aggregate these logs without any application changes.
+
+---
+
+## 15. Graceful Shutdown
+
+ANTS handles shutdown signals by completing in-progress work and persisting state so that runs can resume on restart. See ADR-024 for the full decision record.
+
+### SIGTERM/SIGINT Triggers Shutdown
+
+Both `SIGTERM` (from container runtimes like Docker) and `SIGINT` (Ctrl+C in local development) trigger graceful shutdown. The system does not distinguish between the two signals — both initiate the same shutdown sequence.
+
+### Stop New Requests
+
+Upon receiving a shutdown signal, the HTTP server stops accepting new connections and requests. Any new request received during shutdown receives a `503 Service Unavailable` response with a `Retry-After` header set to the shutdown timeout duration.
+
+### Complete In-Progress HTTP Within 30s
+
+In-flight HTTP requests are given 30 seconds to complete (configurable via the `SHUTDOWN_TIMEOUT_SECONDS` environment variable). Requests that do not complete within this window are forcibly terminated. SSE streams are closed with a shutdown event so clients know the disconnection was intentional.
+
+### Persist Runs as Paused
+
+In-progress runs are persisted with `paused` status. On restart, paused runs resume from the last completed step. All conversation state, tool call history, and LLM context are preserved in the database — nothing is lost.
+
+### Persist Compaction State
+
+If context compaction (Stage 2 LLM summarisation) is in progress during shutdown, the compaction state is persisted: which messages have already been summarised and the summary content produced so far. On restart, compaction continues from where it left off rather than restarting from scratch.
+
+### 503 During Shutdown
+
+All new requests during the shutdown window receive:
+
+```
+HTTP/1.1 503 Service Unavailable
+Retry-After: 30
+Content-Type: application/json
+
+{
+  "error": {
+    "code": "SERVICE_SHUTTING_DOWN",
+    "message": "Server is shutting down. Retry after the indicated time.",
+    "details": { "retry_after_seconds": 30 }
+  }
+}
+```
+
+### Shutdown Sequence
+
+```mermaid
+sequenceDiagram
+    participant Signal as SIGTERM/SIGINT
+    participant Server as HTTP Server
+    participant RunMgr as Run Manager
+    participant DB as PostgreSQL
+
+    Signal->>Server: Graceful shutdown initiated
+    Server->>Server: Stop accepting new requests (503)
+    Server->>RunMgr: Signal in-progress runs to pause
+    RunMgr->>DB: Persist runs as paused
+    RunMgr->>DB: Persist compaction state (if any)
+    Server->>Server: Wait for in-flight requests (30s timeout)
+    alt Requests complete within timeout
+        Server-->>Signal: Clean exit
+    else Timeout expires
+        Server->>Server: Force terminate remaining requests
+        Server-->>Signal: Exit
+    end
+
+    Note over DB,RunMgr: On restart: resume paused runs from last completed step
+```
+
+---
+
 ## Appendix A: Key Architectural Decisions
 
 | Decision | Choice | Rationale |
@@ -1045,6 +1262,9 @@ When an agent makes multiple tool calls in a single turn, each tool call is a se
 | Tool execution model | Phase-based lifecycle, sync, same-process | Standardised output, error-as-result, per-tool timeout, permission enforcement |
 | Context compaction | Same budget/algorithm all tiers, two-stage | 32K/8K budget, 80% trigger, tool result removal then LLM summarisation |
 | Error handling model | Three-tier (API/LLM/tool) | LLM errors retry with backoff, tool errors feed to LLM, partial failures independent |
+| User model & auth | Email/password, invite-only, JWT + API keys, user/admin roles, per-user settings, row-level security, bootstrap CLI | Full identity model for interactive sessions and admin controls; API keys for programmatic access |
+| Logging | Structured JSON to stdout, consistent schema, info default, LOG_LEVEL env var, enhanced health endpoints | 12-factor pattern, no external deps for v1, machine-parseable |
+| Graceful shutdown | SIGTERM/SIGINT → pause runs → 503 new requests → complete in-progress within 30s → resume on restart | Preserves work, bounded shutdown, single-database state |
 
 ---
 
@@ -1068,6 +1288,11 @@ When an agent makes multiple tool calls in a single turn, each tool call is a se
 | **ToolExecutionError** | Standardised error shape for tool execution failures |
 | **Ollama** | Local LLM inference engine used as the default provider |
 | **pgvector** | PostgreSQL extension for vector similarity search |
+| **JWT** | JSON Web Token — used for interactive session authentication with 24h expiry |
+| **API Key** | Bearer token with `sk_` prefix for programmatic access, persistent until revoked |
+| **Invite Code** | Single-use code generated by admins for new user registration |
+| **Graceful Shutdown** | Process of completing in-progress work and persisting state before termination |
+| **Paused Run** | A run persisted with `paused` status during shutdown, resumed on restart |
 
 ---
 
