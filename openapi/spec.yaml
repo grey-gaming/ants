@@ -1115,7 +1115,10 @@ components:
           nullable: true
           description: Type-specific details (message, tool call, delegation target, etc.)
         tool_call:
-          $ref: '#/components/schemas/ToolCall'
+          allOf:
+            - $ref: '#/components/schemas/ToolCall'
+          nullable: true
+          description: Tool call details (null for message_creation and reasoning steps)
         created_at:
           type: string
           format: date-time
@@ -1152,6 +1155,8 @@ components:
           type: object
           additionalProperties: true
         result:
+          type: object
+          additionalProperties: true
           description: Tool execution result
           nullable: true
         status:
@@ -1438,8 +1443,8 @@ components:
       required: [thread_id, runs]
       description: |
         The complete delegation tree for a thread. Runs are nested
-        via parent_run_id. This endpoint builds the tree so you can
-        see which agent called which, tool calls, and results.
+        via parent_run_id with steps embedded directly in each run
+        for a self-contained tree — no client-side cross-referencing needed.
       properties:
         thread_id:
           type: string
@@ -1448,15 +1453,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ActivityRun'
-        steps:
-          type: array
-          items:
-            $ref: '#/components/schemas/RunStep'
-          description: All steps across all runs (keyed by run_id)
 
     ActivityRun:
       type: object
-      description: A run within the activity trace, with sub-run nesting info
+      description: A run within the activity trace, with embedded steps and sub-run nesting
       required: [id, agent_type_id, status, created_at]
       properties:
         id:
@@ -1487,12 +1487,11 @@ components:
         created_at:
           type: string
           format: date-time
-        step_ids:
+        steps:
           type: array
           items:
-            type: string
-            format: uuid
-          description: IDs of steps belonging to this run
+            $ref: '#/components/schemas/RunStep'
+          description: Steps belonging to this run (embedded for convenience)
         sub_run_ids:
           type: array
           items:
