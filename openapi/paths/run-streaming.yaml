@@ -1,0 +1,29 @@
+/threads/{id}/runs/{rid}/stream:
+  get:
+    tags: [Runs]
+    operationId: streamRun
+    summary: SSE stream of run events
+    parameters:
+      - $ref: '../parameters.yaml#/ThreadId'
+      - $ref: '../parameters.yaml#/RunId'
+    responses:
+      '200':
+        description: SSE stream of run events
+        content:
+          text/event-stream:
+            schema:
+              type: array
+              items:
+                oneOf:
+                  - $ref: '../schemas/sse-events.yaml#/RunCreatedEvent'
+                  - $ref: '../schemas/sse-events.yaml#/RunStepCreatedEvent'
+                  - $ref: '../schemas/sse-events.yaml#/RunStepCompletedEvent'
+                  - $ref: '../schemas/sse-events.yaml#/MessageCreatedEvent'
+                  - $ref: '../schemas/sse-events.yaml#/MessageDeltaEvent'
+                  - $ref: '../schemas/sse-events.yaml#/MessageCompletedEvent'
+                  - $ref: '../schemas/sse-events.yaml#/RunCompletedEvent'
+                  - $ref: '../schemas/sse-events.yaml#/RunFailedEvent'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses.yaml#/NotFound'
