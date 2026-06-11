@@ -28,7 +28,7 @@ class MessageService {
     const { $db } = await import('@ants/store');
     if (!$db) throw new Error('Database not initialized');
 
-    await verifyThreadOwnership(userId, input.threadId);
+    await verifyThreadOwnership(input.threadId, userId);
 
     const content = (input.content ?? '').trim();
     if (!content) {
@@ -61,7 +61,7 @@ class MessageService {
     const { $db } = await import('@ants/store');
     if (!$db) throw new Error('Database not initialized');
 
-    await verifyThreadOwnership(userId, threadId);
+    await verifyThreadOwnership(threadId, userId);
 
     const limit = Math.min(params.limit ?? DEFAULT_LIMIT, 500);
 
