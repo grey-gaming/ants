@@ -1,4 +1,4 @@
-import { eq, and, desc, ilike, count, lt, sql } from 'drizzle-orm';
+import { eq, and, desc, ilike, count, lt, sql, or } from 'drizzle-orm';
 import { threads } from '@ants/store';
 import type { Thread } from '@ants/store';
 import { NotFoundError, ValidationError } from '../lib/errors';
@@ -87,12 +87,21 @@ class ThreadService {
 
     if (params.cursor) {
       const [cursorRow] = await $db
-        .select({ createdAt: threads.createdAt })
+        .select({ createdAt: threads.createdAt, id: threads.id })
         .from(threads)
         .where(and(eq(threads.id, params.cursor), eq(threads.userId, userId)));
 
       if (cursorRow) {
-        conditions.push(lt(threads.createdAt, cursorRow.createdAt));
+        const cursorCondition = or(
+          lt(threads.createdAt, cursorRow.createdAt),
+          and(
+            eq(threads.createdAt, cursorRow.createdAt),
+            lt(threads.id, cursorRow.id),
+          ),
+        );
+        if (cursorCondition) {
+          conditions.push(cursorCondition);
+        }
       } else {
         conditions.push(sql`1 = 0`);
       }
