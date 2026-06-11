@@ -1,4 +1,4 @@
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, notInArray } from 'drizzle-orm';
 import { runs, runSteps, threads } from '@ants/store';
 import type { Run, RunStep } from '@ants/store';
 import { NotFoundError, ConflictError } from '../lib/errors';
@@ -8,9 +8,6 @@ import { verifyThreadOwnership, verifyRunOwnership } from '../auth/rls';
 type RunStatus = 'queued' | 'in_progress' | 'awaiting_response' | 'paused' | 'completed' | 'failed' | 'cancelled';
 const TERMINAL_STATES: readonly RunStatus[] = ['completed', 'failed', 'cancelled'];
 
-/**
- * CRUD and lifecycle management for runs and run steps.
- */
 class RunService {
   public async create(
     userId: string,
@@ -65,13 +62,8 @@ class RunService {
   }
 
   public async start(userId: string, id: string): Promise<Run> {
-    const run = await this.ensureAccessible(userId, id);
-
-    if (TERMINAL_STATES.includes(run.status as RunStatus)) {
-      throw new ConflictError(`Run is already in a terminal state: ${run.status}`);
-       }
-
-    return this.transition(userId, id, 'in_progress', { startedAt: new Date() });
+    await this.ensureAccessible(userId, id);
+    return this.transitionFrom(id, 'in_progress', { startedAt: new Date() });
   }
 
   public async complete(
@@ -80,15 +72,13 @@ class RunService {
     usage?: Record<string, unknown>,
    ): Promise<Run> {
     const run = await this.ensureAccessible(userId, id);
-
     if (TERMINAL_STATES.includes(run.status as RunStatus)) {
       throw new ConflictError(`Run is already in a terminal state: ${run.status}`);
-       }
-
-    return this.transition(userId, id, 'completed', {
+    }
+    return this.transitionFrom(id, 'completed', {
       completedAt: new Date(),
       usage: usage ?? run.usage,
-       });
+    });
   }
 
   public async fail(
@@ -97,25 +87,21 @@ class RunService {
     details?: Record<string, unknown>,
    ): Promise<Run> {
     const run = await this.ensureAccessible(userId, id);
-
     if (TERMINAL_STATES.includes(run.status as RunStatus)) {
       throw new ConflictError(`Run is already in a terminal state: ${run.status}`);
-       }
-
-    return this.transition(userId, id, 'failed', {
+    }
+    return this.transitionFrom(id, 'failed', {
       completedAt: new Date(),
       usage: details ?? run.usage,
-       });
+    });
   }
 
   public async cancel(userId: string, id: string): Promise<Run> {
     const run = await this.ensureAccessible(userId, id);
-
     if (TERMINAL_STATES.includes(run.status as RunStatus)) {
       throw new ConflictError(`Cannot cancel a run in terminal state: ${run.status}`);
-       }
-
-    return this.transition(userId, id, 'cancelled', { completedAt: new Date() });
+    }
+    return this.transitionFrom(id, 'cancelled', { completedAt: new Date() });
   }
 
   // ── Steps ────────────────────────────────────────────────────────
@@ -160,7 +146,7 @@ class RunService {
         .from(runSteps)
         .innerJoin(runs, eq(runSteps.runId, runs.id))
         .innerJoin(threads, eq(runs.threadId, threads.id))
-        .where(eq(runSteps.id, stepId));
+        .where(and(eq(runSteps.id, stepId), eq(threads.userId, userId)));
 
     if (!row) throw new NotFoundError('RunStep', stepId);
 
@@ -190,7 +176,7 @@ class RunService {
         .from(runSteps)
         .innerJoin(runs, eq(runSteps.runId, runs.id))
         .innerJoin(threads, eq(runs.threadId, threads.id))
-        .where(eq(runSteps.id, stepId));
+        .where(and(eq(runSteps.id, stepId), eq(threads.userId, userId)));
 
     if (!row) throw new NotFoundError('RunStep', stepId);
 
@@ -228,10 +214,9 @@ class RunService {
     return run;
   }
 
-  private async transition(
-    userId: string,
+  private async transitionFrom(
     id: string,
-    status: RunStatus,
+    newStatus: RunStatus,
     extra: Record<string, unknown>,
    ): Promise<Run> {
     const { $db } = await import('@ants/store');
@@ -239,11 +224,18 @@ class RunService {
 
     const [updated] = await $db
         .update(runs)
-        .set({ status, ...extra })
-        .where(eq(runs.id, id))
+        .set({ status: newStatus, ...extra })
+        .where(
+          and(
+            eq(runs.id, id),
+            notInArray(runs.status, [...TERMINAL_STATES]),
+          ),
+        )
         .returning();
 
-    if (!updated) throw new NotFoundError('Run', id);
+    if (!updated) {
+      throw new ConflictError(`Run ${id} cannot transition to ${newStatus}`);
+    }
     return updated;
   }
 }
