@@ -7,10 +7,10 @@ import {
   pgEnum,
   timestamp,
   boolean,
-  sql,
   unique,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
 
 // ─── Enum Definitions ─────────────────────────────────────────────────────
