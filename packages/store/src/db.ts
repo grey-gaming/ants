@@ -18,7 +18,7 @@ export function createPool(): PostgresPool {
 
 export let $db: PostgresJsDatabase | null = null;
 
-function initDb(): PostgresJsDatabase {
+export function initDb(): PostgresJsDatabase {
   if (!$db) {
     const pgPool = createPool();
     $db = drizzle(pgPool);
