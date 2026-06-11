@@ -45,6 +45,8 @@
       "version": "0.1.0",
       "dependencies": {
         "@ants/store": "workspace:*",
+        "bcryptjs": "^3.0.2",
+        "drizzle-orm": "0.45.2",
         "zod": "4.4.3",
       },
       "devDependencies": {
@@ -281,6 +283,8 @@
     "argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 
     "balanced-match": ["balanced-match@4.0.4", "", {}, "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=="],
+
+    "bcryptjs": ["bcryptjs@3.0.3", "", { "bin": { "bcrypt": "bin/bcrypt" } }, "sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g=="],
 
     "better-ajv-errors": ["better-ajv-errors@2.0.3", "", { "dependencies": { "@babel/code-frame": "^7.27.1", "@humanwhocodes/momoa": "^2.0.4", "chalk": "^4.1.2", "jsonpointer": "^5.0.1", "leven": "^3.1.0 < 4" }, "peerDependencies": { "ajv": "4.11.8 - 8" } }, "sha512-t1vxUP+vYKsaYi/BbKo2K98nEAZmfi4sjwvmRT8aOPDzPJeAtLurfoIDazVkLILxO4K+Sw4YrLYnBQ46l6pePg=="],
 
