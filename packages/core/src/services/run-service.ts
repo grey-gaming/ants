@@ -1,4 +1,4 @@
-import { eq, and, asc, notInArray } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
 import { runs, runSteps, threads } from '@ants/store';
 import type { Run, RunStep } from '@ants/store';
 import { NotFoundError, ConflictError } from '../lib/errors';
@@ -21,7 +21,7 @@ class RunService {
     const { $db } = await import('@ants/store');
     if (!$db) throw new Error('Database not initialized');
 
-    await verifyThreadOwnership(userId, input.threadId);
+    await verifyThreadOwnership(input.threadId, userId);
 
     const [run] = await $db.insert(runs).values({
       id: generateId(),
@@ -52,7 +52,7 @@ class RunService {
     const { $db } = await import('@ants/store');
     if (!$db) throw new Error('Database not initialized');
 
-    await verifyThreadOwnership(userId, threadId);
+    await verifyThreadOwnership(threadId, userId);
 
     return $db
         .select()
@@ -62,35 +62,35 @@ class RunService {
   }
 
   public async start(userId: string, id: string): Promise<Run> {
-    await this.ensureAccessible(userId, id);
-    return this.transitionFrom(id, 'in_progress', { startedAt: new Date() });
+    const run = await this.ensureAccessible(userId, id);
+    return this.transitionFrom(id, run.status, 'in_progress', { startedAt: new Date() });
   }
 
   public async complete(
-    userId: string,
-    id: string,
-    usage?: Record<string, unknown>,
-   ): Promise<Run> {
+     userId: string,
+     id: string,
+     usage?: Record<string, unknown>,
+    ): Promise<Run> {
     const run = await this.ensureAccessible(userId, id);
     if (TERMINAL_STATES.includes(run.status as RunStatus)) {
       throw new ConflictError(`Run is already in a terminal state: ${run.status}`);
     }
-    return this.transitionFrom(id, 'completed', {
+    return this.transitionFrom(id, run.status, 'completed', {
       completedAt: new Date(),
       usage: usage ?? run.usage,
     });
   }
 
   public async fail(
-    userId: string,
-    id: string,
-    details?: Record<string, unknown>,
-   ): Promise<Run> {
+     userId: string,
+     id: string,
+     details?: Record<string, unknown>,
+    ): Promise<Run> {
     const run = await this.ensureAccessible(userId, id);
     if (TERMINAL_STATES.includes(run.status as RunStatus)) {
       throw new ConflictError(`Run is already in a terminal state: ${run.status}`);
     }
-    return this.transitionFrom(id, 'failed', {
+    return this.transitionFrom(id, run.status, 'failed', {
       completedAt: new Date(),
       usage: details ?? run.usage,
     });
@@ -101,7 +101,7 @@ class RunService {
     if (TERMINAL_STATES.includes(run.status as RunStatus)) {
       throw new ConflictError(`Cannot cancel a run in terminal state: ${run.status}`);
     }
-    return this.transitionFrom(id, 'cancelled', { completedAt: new Date() });
+    return this.transitionFrom(id, run.status, 'cancelled', { completedAt: new Date() });
   }
 
   // ── Steps ────────────────────────────────────────────────────────
@@ -134,64 +134,66 @@ class RunService {
   }
 
   public async completeStep(
-    userId: string,
-    stepId: string,
-    details?: Record<string, unknown>,
-   ): Promise<RunStep> {
-    const { $db } = await import('@ants/store');
-    if (!$db) throw new Error('Database not initialized');
-
-    const [row] = await $db
-        .select({ step: runSteps, runId: runs.id })
-        .from(runSteps)
-        .innerJoin(runs, eq(runSteps.runId, runs.id))
-        .innerJoin(threads, eq(runs.threadId, threads.id))
-        .where(and(eq(runSteps.id, stepId), eq(threads.userId, userId)));
-
-    if (!row) throw new NotFoundError('RunStep', stepId);
-
-    const [updated] = await $db
-        .update(runSteps)
-        .set({
-          status: 'completed',
-          details: details ?? null,
-          completedAt: new Date(),
-          })
-        .where(eq(runSteps.id, stepId))
-        .returning();
-
-    return updated;
-  }
+     userId: string,
+     stepId: string,
+     details?: Record<string, unknown>,
+    ): Promise<RunStep> {
+     const { $db } = await import('@ants/store');
+     if (!$db) throw new Error('Database not initialized');
+ 
+     const [row] = await $db
+         .select({ step: runSteps, runId: runs.id })
+         .from(runSteps)
+         .innerJoin(runs, eq(runSteps.runId, runs.id))
+         .innerJoin(threads, eq(runs.threadId, threads.id))
+         .where(and(eq(runSteps.id, stepId), eq(threads.userId, userId)));
+ 
+     if (!row) throw new NotFoundError('RunStep', stepId);
+ 
+     const [updated] = await $db
+         .update(runSteps)
+         .set({
+           status: 'completed',
+           details: details ?? null,
+           completedAt: new Date(),
+           })
+         .where(and(eq(runSteps.id, stepId), eq(runSteps.runId, row.runId)))
+         .returning();
+ 
+     if (!updated) throw new NotFoundError('RunStep', stepId);
+     return updated;
+   }
 
   public async failStep(
-    userId: string,
-    stepId: string,
-    details?: Record<string, unknown>,
-   ): Promise<RunStep> {
-    const { $db } = await import('@ants/store');
-    if (!$db) throw new Error('Database not initialized');
-
-    const [row] = await $db
-        .select({ step: runSteps, runId: runs.id })
-        .from(runSteps)
-        .innerJoin(runs, eq(runSteps.runId, runs.id))
-        .innerJoin(threads, eq(runs.threadId, threads.id))
-        .where(and(eq(runSteps.id, stepId), eq(threads.userId, userId)));
-
-    if (!row) throw new NotFoundError('RunStep', stepId);
-
-    const [updated] = await $db
-        .update(runSteps)
-        .set({
-          status: 'failed',
-          details: details ?? null,
-          completedAt: new Date(),
-          })
-        .where(eq(runSteps.id, stepId))
-        .returning();
-
-    return updated;
-  }
+     userId: string,
+     stepId: string,
+     details?: Record<string, unknown>,
+    ): Promise<RunStep> {
+     const { $db } = await import('@ants/store');
+     if (!$db) throw new Error('Database not initialized');
+ 
+     const [row] = await $db
+         .select({ step: runSteps, runId: runs.id })
+         .from(runSteps)
+         .innerJoin(runs, eq(runSteps.runId, runs.id))
+         .innerJoin(threads, eq(runs.threadId, threads.id))
+         .where(and(eq(runSteps.id, stepId), eq(threads.userId, userId)));
+ 
+     if (!row) throw new NotFoundError('RunStep', stepId);
+ 
+     const [updated] = await $db
+         .update(runSteps)
+         .set({
+           status: 'failed',
+           details: details ?? null,
+           completedAt: new Date(),
+           })
+         .where(and(eq(runSteps.id, stepId), eq(runSteps.runId, row.runId)))
+         .returning();
+ 
+     if (!updated) throw new NotFoundError('RunStep', stepId);
+     return updated;
+   }
 
   public async getStepsForRun(userId: string, runId: string): Promise<RunStep[]> {
     const { $db } = await import('@ants/store');
@@ -215,29 +217,30 @@ class RunService {
   }
 
   private async transitionFrom(
-    id: string,
-    newStatus: RunStatus,
-    extra: Record<string, unknown>,
-   ): Promise<Run> {
-    const { $db } = await import('@ants/store');
-    if (!$db) throw new Error('Database not initialized');
+     id: string,
+     expectedStatus: RunStatus,
+     newStatus: RunStatus,
+     extra: Record<string, unknown>,
+    ): Promise<Run> {
+     const { $db } = await import('@ants/store');
+     if (!$db) throw new Error('Database not initialized');
 
-    const [updated] = await $db
-        .update(runs)
-        .set({ status: newStatus, ...extra })
-        .where(
-          and(
-            eq(runs.id, id),
-            notInArray(runs.status, [...TERMINAL_STATES]),
-          ),
-        )
-        .returning();
+     const [updated] = await $db
+         .update(runs)
+         .set({ status: newStatus, ...extra })
+         .where(
+           and(
+             eq(runs.id, id),
+             eq(runs.status, expectedStatus),
+           ),
+         )
+         .returning();
 
-    if (!updated) {
-      throw new ConflictError(`Run ${id} cannot transition to ${newStatus}`);
-    }
-    return updated;
-  }
+     if (!updated) {
+       throw new ConflictError(`Run ${id} cannot transition from ${expectedStatus} to ${newStatus}`);
+     }
+     return updated;
+   }
 }
 
 export const runService = new RunService();
