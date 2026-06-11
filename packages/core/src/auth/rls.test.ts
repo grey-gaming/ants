@@ -1,0 +1,19 @@
+import { describe, test, expect } from "bun:test";
+import { scopeByUserId, verifyThreadOwnership, verifyRunOwnership } from "./rls";
+
+describe("RLS helpers", () => {
+  test("scopeByUserId returns a SQL object", () => {
+    const filter = scopeByUserId("user-123");
+    expect(filter).toBeDefined();
+  });
+
+  test("verifyThreadOwnership returns a SQL object", () => {
+    const filter = verifyThreadOwnership("user-123", "thread-456");
+    expect(filter).toBeDefined();
+  });
+
+  test("verifyRunOwnership returns a SQL object", () => {
+    const filter = verifyRunOwnership("thread-456", "run-789");
+    expect(filter).toBeDefined();
+  });
+});
