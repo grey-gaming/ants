@@ -76,7 +76,6 @@ export const apiKeys = pgTable('api_keys', {
   lastUsedAt: timestamp('last_used_at'),
   expiresAt: timestamp('expires_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-}
 }, (t) => ({
   apiKeysUserIdIdx: index().on(t.userId),
   apiKeysKeyHashKey: unique().on(t.keyHash),
