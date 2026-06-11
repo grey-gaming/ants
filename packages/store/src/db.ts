@@ -18,7 +18,7 @@ export function createPool(): PostgresPool {
 
 export let $db: PostgresJsDatabase | null = null;
 
-function ensureDb(): PostgresJsDatabase {
+function initDb(): PostgresJsDatabase {
   if (!$db) {
     const pgPool = createPool();
     $db = drizzle(pgPool);
@@ -27,7 +27,7 @@ function ensureDb(): PostgresJsDatabase {
 }
 
 // Initialize the db instance on module load
-ensureDb();
+initDb();
 
 /**
  * Connect to the database.
@@ -49,9 +49,16 @@ export async function connect(): Promise<void> {
  * Destroys the current connection pool.
  */
 export async function disconnect(): Promise<void> {
-  if (pool) {
-    await pool.end();
+  try {
+    if (pool) {
+      await pool.end();
+      pool = null;
+      $db = null;
+    }
+  } catch {
+    // pool.end() may throw if connection is already closed;
+    // ensure stale state is cleaned up regardless
     pool = null;
     $db = null;
-   }
+  }
 }
