@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray, count } from "drizzle-orm";
+import { eq, and, desc, inArray, count, lt } from "drizzle-orm";
 import { runs, runSteps } from "@ants/store";
 import type { Run, NewRun, RunStep } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -64,18 +64,22 @@ export function createRunService(db: PostgresJsDatabase): RunService {
     options: RunListOptions = {},
   ): Promise<{ data: Run[]; nextCursor: string | null }> {
     const limit = options.limit ?? 50;
-    let query = db.select().from(runs).where(eq(runs.threadId, threadId));
-
+    const conditions = [eq(runs.threadId, threadId)];
     if (options.status) {
-      query = db
-        .select()
-        .from(runs)
-        .where(and(eq(runs.threadId, threadId), eq(runs.status, options.status)));
+      conditions.push(eq(runs.status, options.status));
+    }
+    if (options.cursor) {
+      conditions.push(lt(runs.createdAt, new Date(options.cursor)));
     }
 
-    const rows = await query
+    let query = db
+      .select()
+      .from(runs)
+      .where(and(...conditions))
       .orderBy(desc(runs.createdAt))
       .limit(limit + 1);
+
+    const rows = await query;
 
     const hasMore = rows.length > limit;
     const data = rows.slice(0, limit);
