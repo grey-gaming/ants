@@ -42,7 +42,7 @@ interface QueueService {
   enqueue(input: EnqueueInput): void;
   dequeue(): QueueItem | null;
   getStats(): Promise<QueueStats>;
-  enforceConcurrencyLimits(userId?: string): void;
+  enforceConcurrencyLimits(userId?: string): Promise<void>;
 }
 
 function createInMemoryQueue(): QueueItem[] {
