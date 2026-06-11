@@ -20,14 +20,17 @@ describe('db — Module Exports', () => {
 });
 
 describe('db — Pool creation', () => {
-  test('createPool returns a pool instance', () => {
-    const url = 'postgresql://test:test@localhost:5432/test';
-    const original = process.env.DATABASE_URL;
-    process.env.DATABASE_URL = url;
+   test('createPool returns a pool instance', async () => {
+     const original = process.env.DATABASE_URL;
+     process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
 
-    const pool = dbModule.createPool();
-    expect(pool).toBeDefined();
+      await dbModule.connect();
 
-    process.env.DATABASE_URL = original;
-  });
-});
+      const pool = dbModule.createPool();
+      expect(pool).toBeDefined();
+
+      await dbModule.disconnect();
+
+     process.env.DATABASE_URL = original;
+    });
+   });
