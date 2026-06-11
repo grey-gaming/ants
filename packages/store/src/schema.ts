@@ -71,6 +71,7 @@ export const users = pgTable('users', {
 export const apiKeys = pgTable('api_keys', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id),
+  keyPrefix: varchar('key_prefix', { length: 16 }).notNull(),
   keyHash: text('key_hash').notNull(),
   name: text('name').notNull(),
   lastUsedAt: timestamp('last_used_at'),
@@ -78,6 +79,7 @@ export const apiKeys = pgTable('api_keys', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (t) => ({
   apiKeysUserIdIdx: index().on(t.userId),
+  apiKeysPrefixIdx: index().on(t.keyPrefix),
   apiKeysKeyHashKey: unique().on(t.keyHash),
 }));
 
