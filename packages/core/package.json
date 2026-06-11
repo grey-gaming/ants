@@ -9,6 +9,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@types/uuid": "^10.0.0",
     "typescript": "6.0.3"
   }
 }

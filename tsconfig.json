@@ -10,8 +10,9 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
-    "paths": {
+      "sourceMap": true,
+      "types": ["bun"],
+      "paths": {
       "@ants/core": ["./packages/core/src"],
       "@ants/core/*": ["./packages/core/src/*"],
       "@ants/api": ["./packages/api/src"],
@@ -25,7 +26,7 @@
       "@ants/store": ["./packages/store/src"],
       "@ants/store/*": ["./packages/store/src/*"]
     }
-  },
-  "include": ["packages/*/src"],
+   },
+     "include": ["packages/*/src"],
   "exclude": ["node_modules", "drizzle"]
 }
