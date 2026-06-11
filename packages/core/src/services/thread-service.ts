@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, ilike, count } from 'drizzle-orm';
+import { eq, and, desc, ilike, count, lt, sql } from 'drizzle-orm';
 import { threads } from '@ants/store';
 import type { Thread } from '@ants/store';
 import { NotFoundError, ValidationError } from '../lib/errors';
@@ -79,28 +79,31 @@ class ThreadService {
     const limit = Math.min(params.limit ?? DEFAULT_LIMIT, 100);
     const fetchLimit = limit + 1;
 
-    let query = $db.select().from(threads).where(eq(threads.userId, userId));
+    const conditions = [eq(threads.userId, userId)];
 
     if (params.search) {
-      query = $db
-         .select()
-         .from(threads)
-         .where(
-          and(
-            eq(threads.userId, userId),
-            ilike(threads.title, `%${params.search}%`),
-           ),
-         );
-     }
-
-    let rows = await query.orderBy(desc(threads.createdAt)).limit(fetchLimit);
+      conditions.push(ilike(threads.title, `%${params.search}%`));
+    }
 
     if (params.cursor) {
-      const cursorIdx = rows.findIndex((r) => r.id === params.cursor);
-      if (cursorIdx >= 0) {
-        rows = rows.slice(cursorIdx + 1);
-       }
-     }
+      const [cursorRow] = await $db
+        .select({ createdAt: threads.createdAt })
+        .from(threads)
+        .where(and(eq(threads.id, params.cursor), eq(threads.userId, userId)));
+
+      if (cursorRow) {
+        conditions.push(lt(threads.createdAt, cursorRow.createdAt));
+      } else {
+        conditions.push(sql`1 = 0`);
+      }
+    }
+
+    const rows = await $db
+      .select()
+      .from(threads)
+      .where(and(...conditions))
+      .orderBy(desc(threads.createdAt))
+      .limit(fetchLimit);
 
     const hasMore = rows.length > limit;
     const items = hasMore ? rows.slice(0, limit) : rows;
