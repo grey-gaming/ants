@@ -19,10 +19,10 @@ export abstract class BaseTool implements Tool {
 
   async execute(input: unknown): Promise<ToolResult> {
     logger.info(`Executing tool "${this.name}"`);
-    const result = this._execute(input);
+    const result = await this._execute(input);
     logger.info(`${this.name} executed successfully`);
     return result;
   }
 
-  protected abstract _execute(input: unknown): ToolResult;
+  protected abstract _execute(input: unknown): Promise<ToolResult>;
 }
