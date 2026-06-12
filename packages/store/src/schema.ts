@@ -7,10 +7,10 @@ import {
   pgEnum,
   timestamp,
   boolean,
-  sql,
   unique,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
 
 // ─── Enum Definitions ─────────────────────────────────────────────────────
@@ -53,6 +53,13 @@ export const toolCallStatusEnum = pgEnum('tool_call_status', [
 export const tierEnum = pgEnum('tier', ['T1', 'T2', 'T3']);
 
 export const toolTypeEnum = pgEnum('tool_type', ['function', 'builtin']);
+
+export const jobQueuePriorityEnum = pgEnum('job_queue_priority', [
+  'critical',
+  'high',
+  'normal',
+  'low',
+]);
 
 // ─── Table: users ─────────────────────────────────────────────────────────
 
@@ -120,10 +127,13 @@ export const tools = pgTable('tools', {
   parametersSchema: jsonb('parameters_schema', { mode: 'json' }).$type<Record<string, unknown>>(),
   type: toolTypeEnum('type').notNull(),
   active: boolean('active').notNull().default(true),
+  createdBy: uuid('created_by').references(() => users.id),
+  updatedBy: uuid('updated_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({
   toolsNameKey: unique().on(t.name),
+  toolsCreatedByIdx: index().on(t.createdBy),
 }));
 
 // ─── Table: invite_codes ──────────────────────────────────────────────────
@@ -153,6 +163,22 @@ export const settings = pgTable('settings', {
   settingsUserIdIdx: index().on(t.userId),
 }));
 
+// ─── Table: job_queue ─────────────────────────────────────────────────────
+
+export const jobQueue = pgTable('job_queue', {
+  id: uuid('id').primaryKey().$default(() => sql`gen_random_uuid()`),
+  runId: uuid('run_id').notNull().references(() => runs.id),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  threadId: uuid('thread_id').notNull().references(() => threads.id),
+  priority: jobQueuePriorityEnum('priority').notNull().default('normal'),
+  status: varchar('status', { length: 20 }).notNull().default('waiting'),
+  enqueuedAt: timestamp('enqueued_at').defaultNow().notNull(),
+  processedAt: timestamp('processed_at'),
+}, (t) => ({
+  jobQueueStatusIdx: index().on(t.status),
+  jobQueuePriorityEnqueuedIdx: index().on(t.priority, t.enqueuedAt),
+}));
+
 // ─── Table: messages ──────────────────────────────────────────────────────
 
 export const messages = pgTable('messages', {
@@ -172,6 +198,7 @@ export const messages = pgTable('messages', {
 export const runs = pgTable('runs', {
   id: uuid('id').primaryKey().$default(() => sql`gen_random_uuid()`),
   threadId: uuid('thread_id').notNull().references(() => threads.id),
+  userId: uuid('user_id').notNull().references(() => users.id),
   agentTypeId: uuid('agent_type_id').notNull().references(() => agentTypes.id),
   parentRunId: uuid('parent_run_id').references(() => runs.id),
   status: runStatusEnum('status').notNull().default('queued'),
@@ -182,6 +209,7 @@ export const runs = pgTable('runs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (t) => ({
   runsThreadIdIdx: index().on(t.threadId),
+  runsUserIdIdx: index().on(t.userId),
   runsAgentTypeIdIdx: index().on(t.agentTypeId),
   runsStatusIdx: index().on(t.status),
   runsParentRunIdIdx: index().on(t.parentRunId),
@@ -273,6 +301,12 @@ export const settingsRelations = relations(settings, ({ one }) => ({
   user: one(users, { fields: [settings.userId], references: [users.id] }),
 }));
 
+export const jobQueueRelations = relations(jobQueue, ({ one }) => ({
+  run: one(runs, { fields: [jobQueue.runId], references: [runs.id] }),
+  user: one(users, { fields: [jobQueue.userId], references: [users.id] }),
+  thread: one(threads, { fields: [jobQueue.threadId], references: [threads.id] }),
+}));
+
 // ─── Type Exports ─────────────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect;
@@ -307,3 +341,6 @@ export type NewInviteCode = typeof inviteCodes.$inferInsert;
 
 export type Setting = typeof settings.$inferSelect;
 export type NewSetting = typeof settings.$inferInsert;
+
+export type JobQueue = typeof jobQueue.$inferSelect;
+export type NewJobQueue = typeof jobQueue.$inferInsert;
