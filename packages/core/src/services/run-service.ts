@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray, count, lt } from "drizzle-orm";
+import { eq, and, desc, lt, inArray, count, or } from "drizzle-orm";
 import { runs, runSteps } from "@ants/store";
 import type { Run, NewRun, RunStep } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -9,6 +9,7 @@ type RunStatus = NewRun["status"];
 const TERMINAL_STATUSES: RunStatus[] = ["completed", "failed", "cancelled"];
 
 interface RunCreateInput {
+  userId: string;
   threadId: string;
   agentTypeId: string;
   modelConfig?: Record<string, unknown> | null;
@@ -30,6 +31,21 @@ interface RunService {
   getSteps(runId: string): Promise<RunStep[]>;
 }
 
+function encodeCursor(createdAt: Date, id: string): string {
+  return btoa(`${createdAt.toISOString()}~${id}`);
+}
+
+function decodeCursor(cursor: string | undefined): { dateStr: string; id: string } | null {
+  if (!cursor) return null;
+  try {
+    const decoded = Buffer.from(cursor, "base64").toString();
+    const [dateStr, id] = decoded.split("~");
+    return dateStr ? { dateStr, id: id || "" } : null;
+  } catch {
+    return null;
+  }
+}
+
 export function createRunService(db: PostgresJsDatabase): RunService {
   async function create(input: RunCreateInput): Promise<Run> {
     if (!input.threadId || !input.agentTypeId) {
@@ -39,6 +55,7 @@ export function createRunService(db: PostgresJsDatabase): RunService {
     const [run] = await db
       .insert(runs)
       .values({
+        userId: input.userId,
         threadId: input.threadId,
         agentTypeId: input.agentTypeId,
         modelConfig: input.modelConfig ?? null,
@@ -64,27 +81,33 @@ export function createRunService(db: PostgresJsDatabase): RunService {
     options: RunListOptions = {},
   ): Promise<{ data: Run[]; nextCursor: string | null }> {
     const limit = options.limit ?? 50;
+    const cursor = decodeCursor(options.cursor);
+
     const conditions = [eq(runs.threadId, threadId)];
     if (options.status) {
       conditions.push(eq(runs.status, options.status));
     }
-    if (options.cursor) {
-      conditions.push(lt(runs.createdAt, new Date(options.cursor)));
+    if (cursor) {
+      conditions.push(or(
+        sql`${runs.createdAt} < ${cursor.dateStr}`,
+        and(
+          sql`${runs.createdAt} = ${cursor.dateStr}`,
+          sql`${runs.id} < ${cursor.id}`,
+        ),
+      ));
     }
 
-    let query = db
+    const rows = await db
       .select()
       .from(runs)
       .where(and(...conditions))
-      .orderBy(desc(runs.createdAt))
+      .orderBy(desc(runs.createdAt), desc(runs.id))
       .limit(limit + 1);
-
-    const rows = await query;
 
     const hasMore = rows.length > limit;
     const data = rows.slice(0, limit);
     const nextCursor = hasMore && data.length > 0
-      ? data[data.length - 1].createdAt.toISOString()
+      ? encodeCursor(data[data.length - 1].createdAt, data[data.length - 1].id)
       : null;
 
     return { data, nextCursor };
