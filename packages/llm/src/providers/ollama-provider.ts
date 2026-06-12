@@ -49,13 +49,13 @@ export class OllamaProvider implements LLMProvider {
     const content = body.message?.content ?? "";
     return {
       content,
-      tokens: body.evaluate_count
-        ? body.evaluate_count + (body.predicted_token_count || 0)
+      tokens: body.eval_count
+        ? body.eval_count + (body.prompt_eval_count || 0)
         : 0,
       metadata: {
         model: this.modelName,
-        evaluateCount: body.evaluate_count || 0,
-        predictCount: body.predicted_token_count || 0,
+        evaluateCount: body.eval_count || 0,
+        predictCount: body.prompt_eval_count || 0,
       },
     };
   }
@@ -101,14 +101,19 @@ export class OllamaProvider implements LLMProvider {
 
         for (const line of lines) {
           if (!line.trim()) continue;
-          const parsed = JSON.parse(line);
+          let parsed: any;
+          try {
+            parsed = JSON.parse(line);
+          } catch {
+            continue;
+          }
           const content = parsed.message?.content ?? "";
           const isDone = parsed.done || false;
           yield {
             content,
             done: isDone,
             tokens: isDone
-              ? (parsed.evaluate_count || 0) + (parsed.predicted_token_count || 0)
+              ? (parsed.eval_count || 0) + (parsed.prompt_eval_count || 0)
               : undefined,
           };
         }
