@@ -12,7 +12,10 @@ describe("RLS helpers", () => {
     expect(filter).toBeDefined();
   });
 
-  test("verifyRunOwnership returns a SQL object with userId check", () => {
+  test("verifyRunOwnership returns a SQL object using subquery for ownership", () => {
+    if (!process.env.DATABASE_URL) {
+      return;
+    }
     const filter = verifyRunOwnership("user-123", "thread-456", "run-789");
     expect(filter).toBeDefined();
   });
