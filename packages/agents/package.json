@@ -6,6 +6,8 @@
   "main": "src/index.ts",
   "dependencies": {
     "@ants/core": "workspace:*",
+    "@ants/tools": "workspace:*",
+    "@ants/llm": "workspace:*",
     "ai": "6.0.197"
   },
   "devDependencies": {

@@ -4,13 +4,15 @@ import { BaseTool } from "./tools/base-tool";
 import { WebSearch } from "./tools/web-search";
 
 class MockTool extends BaseTool<typeof MockTool.parameters> {
-  name = "mock-tool";
-  description = "A mock tool for testing";
   static parameters = z.object({
     value: z.string(),
     count: z.number(),
   });
   parameters = MockTool.parameters;
+
+  constructor() {
+    super({ name: "mock-tool", description: "A mock tool for testing" });
+  }
 
   protected async _execute(
     input: z.infer<typeof MockTool.parameters>

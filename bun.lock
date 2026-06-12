@@ -18,6 +18,8 @@
       "version": "0.1.0",
       "dependencies": {
         "@ants/core": "workspace:*",
+        "@ants/llm": "workspace:*",
+        "@ants/tools": "workspace:*",
         "ai": "6.0.197",
       },
       "devDependencies": {
@@ -85,6 +87,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@ants/core": "workspace:*",
+        "@ants/llm": "workspace:*",
         "zod": "4.4.3",
       },
       "devDependencies": {
