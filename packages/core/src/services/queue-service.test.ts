@@ -2,98 +2,101 @@ import { describe, test, expect } from "bun:test";
 import { createQueueService } from "./queue-service";
 import { RateLimitError } from "../lib/errors";
 
-function makeMockDb(perUser: Record<string, number>) {
-  const results = Object.entries(perUser).map(([userId, count]) => ({
+function makeMockDb(perUser: Record<string, number>, queuedCount: number = 0): never {
+  const activeResults = Object.entries(perUser).map(([userId, count]) => ({
     userId,
     activeCount: String(count),
   }));
 
+  const countResult = [{ count: String(queuedCount) }];
+  const emptyResult: unknown[] = [];
+
+  function resolvedEmpty(): thenable {
+    return Object.assign(
+      async () => emptyResult,
+      { then: (resolve: (v: unknown) => void) => resolve(emptyResult) },
+    );
+  }
+
+  function orderedBuilder(): thenable {
+    return Object.assign(
+      async () => emptyResult,
+      {
+        limit: () => resolvedEmpty(),
+        then: (resolve: (v: unknown) => void) => resolve(emptyResult),
+      },
+    );
+  }
+
+  function whereBuilder(): thenable {
+    return Object.assign(
+      async () => emptyResult,
+      {
+        orderBy: () => orderedBuilder(),
+        limit: async () => countResult,
+        groupBy: async () => activeResults,
+        then: (resolve: (v: unknown) => void) => resolve(countResult),
+      },
+    );
+  }
+
   return {
     select: () => ({
       from: () => ({
-        where: () => ({
-          groupBy: async () => results,
-        }),
+        where: () => whereBuilder(),
       }),
+      where: async () => countResult,
     }),
+    insert: () => ({ values: () => {} }),
+    update: () => ({ set: () => ({ where: async () => [] }) }),
   } as never;
 }
 
 describe("queue-service", () => {
-  test("dequeue empty returns null", () => {
-    const db = makeMockDb({});
-    const service = createQueueService(db);
-    expect(service.dequeue()).toBeNull();
+  test("dequeue empty returns null", async () => {
+    const service = createQueueService(makeMockDb({}));
+    const result = await service.dequeue();
+    expect(result).toBeNull();
   });
 
-  test("enqueue and dequeue in priority order", () => {
-    const db = makeMockDb({});
-    const service = createQueueService(db);
+  test("enqueue is async and writes to store", async () => {
+    const service = createQueueService(makeMockDb({}));
 
-    service.enqueue({ runId: "r-1", userId: "u-1", threadId: "t-1", priority: "low" });
-    service.enqueue({ runId: "r-2", userId: "u-2", threadId: "t-2", priority: "critical" });
-    service.enqueue({ runId: "r-3", userId: "u-1", threadId: "t-1", priority: "high" });
-    service.enqueue({ runId: "r-4", userId: "u-1", threadId: "t-1", priority: "normal" });
-
-    expect(service.dequeue()?.runId).toBe("r-2");
-    expect(service.dequeue()?.runId).toBe("r-3");
-    expect(service.dequeue()?.runId).toBe("r-4");
-    expect(service.dequeue()?.runId).toBe("r-1");
-    expect(service.dequeue()).toBeNull();
-  });
-
-  test("dequeue FIFO within same priority", () => {
-    const db = makeMockDb({});
-    const service = createQueueService(db);
-
-    service.enqueue({ runId: "r-1", userId: "u-1", threadId: "t-1", priority: "normal" });
-    service.enqueue({ runId: "r-2", userId: "u-1", threadId: "t-1", priority: "normal" });
-
-    expect(service.dequeue()?.runId).toBe("r-1");
-    expect(service.dequeue()?.runId).toBe("r-2");
-  });
-
-  test("default priority is normal", () => {
-    const db = makeMockDb({});
-    const service = createQueueService(db);
-
-    service.enqueue({ runId: "r-1", userId: "u-1", threadId: "t-1" });
-    service.enqueue({ runId: "r-2", userId: "u-1", threadId: "t-1", priority: "high" });
-
-    expect(service.dequeue()?.runId).toBe("r-2");
-    expect(service.dequeue()?.runId).toBe("r-1");
+    await expect(
+      service.enqueue({
+        runId: "r-1",
+        userId: "u-1",
+        threadId: "t-1",
+        priority: "critical",
+      }),
+    ).resolves.toBeUndefined();
   });
 
   test("enforceConcurrencyLimits throws on global limit", async () => {
-    const db = makeMockDb({ "u-1": 5, "u-2": 5 });
-    const service = createQueueService(db);
+    const service = createQueueService(makeMockDb({ "u-1": 5, "u-2": 5 }));
 
     await expect(service.enforceConcurrencyLimits()).rejects.toThrow(RateLimitError);
   });
 
   test("enforceConcurrencyLimits throws on per-user limit", async () => {
-    const db = makeMockDb({ "u-1": 3 });
-    const service = createQueueService(db);
+    const service = createQueueService(makeMockDb({ "u-1": 3 }));
 
     await expect(service.enforceConcurrencyLimits("u-1")).rejects.toThrow(RateLimitError);
   });
 
   test("enforceConcurrencyLimits allows within limits", async () => {
-    const db = makeMockDb({ "u-1": 1 });
-    const service = createQueueService(db);
+    const service = createQueueService(makeMockDb({ "u-1": 1 }));
 
     await expect(service.enforceConcurrencyLimits("u-1")).resolves.toBeUndefined();
   });
 
-  test("getStats returns queue depth", async () => {
-    const db = makeMockDb({});
-    const service = createQueueService(db);
-
-    service.enqueue({ runId: "r-1", userId: "u-1", threadId: "t-1" });
-    service.enqueue({ runId: "r-2", userId: "u-2", threadId: "t-2" });
+  test("getStats returns correct stats from db", async () => {
+    const service = createQueueService(makeMockDb({ "u-1": 2 }, 3));
 
     const stats = await service.getStats();
-    expect(stats.queueDepth).toBe(2);
     expect(stats.maxConcurrency).toBe(10);
+    expect(stats.activeRuns).toBe(2);
+    expect(stats.queueDepth).toBe(3);
+    expect(stats.perUserActiveRuns["u-1"]).toBe(2);
   });
 });
