@@ -1,8 +1,7 @@
-import { eq, inArray, count, sql } from "drizzle-orm";
-import { runs } from "@ants/store";
+import { eq, inArray, and, count, asc, desc, sql } from "drizzle-orm";
+import { runs, jobQueue } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { RateLimitError, ValidationError } from "../lib/errors";
-import { config } from "../lib/config";
 
 const DEFAULT_GLOBAL_CONCURRENCY = 10;
 const DEFAULT_PER_USER_CONCURRENCY = 3;
@@ -38,50 +37,83 @@ interface EnqueueInput {
   priority?: QueuePriority;
 }
 
+interface DequeueResult {
+  queueItemId: string;
+  runId: string;
+  userId: string;
+  threadId: string;
+  priority: QueuePriority;
+}
+
 interface QueueService {
-  enqueue(input: EnqueueInput): void;
-  dequeue(): QueueItem | null;
+  enqueue(input: EnqueueInput): Promise<void>;
+  dequeue(): Promise<DequeueResult | null>;
   getStats(): Promise<QueueStats>;
   enforceConcurrencyLimits(userId?: string): Promise<void>;
 }
 
-function createInMemoryQueue(): QueueItem[] {
-  return [];
-}
-
 export function createQueueService(db: PostgresJsDatabase): QueueService {
-  const queue = createInMemoryQueue();
-
-  function enqueue(input: EnqueueInput): void {
-    queue.push({
-      runId: input.runId,
-      userId: input.userId,
-      threadId: input.threadId,
-      priority: input.priority ?? "normal",
-      enqueuedAt: new Date(),
-    });
-
-    queue.sort((a, b) => {
-      const priorityDiff = PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
-      if (priorityDiff !== 0) return priorityDiff;
-      return a.enqueuedAt.getTime() - b.enqueuedAt.getTime();
-    });
+  async function enqueue(input: EnqueueInput): Promise<void> {
+    await db
+      .insert(jobQueue)
+      .values({
+        runId: input.runId,
+        userId: input.userId,
+        threadId: input.threadId,
+        priority: input.priority ?? "normal",
+        status: "waiting",
+      });
   }
 
-  function dequeue(): QueueItem | null {
-    if (queue.length === 0) return null;
-    return queue.shift() ?? null;
+  async function dequeue(): Promise<DequeueResult | null> {
+    const [job] = await db
+      .select()
+      .from(jobQueue)
+      .where(eq(jobQueue.status, "waiting"))
+      .orderBy(
+        asc(jobQueue.priority),
+        asc(jobQueue.enqueuedAt),
+      )
+      .limit(1);
+
+    if (!job) return null;
+
+    const jobId = job.id;
+
+    await db
+      .update(jobQueue)
+      .set({ status: "active", processedAt: new Date() })
+      .where(and(eq(jobQueue.id, jobId), eq(jobQueue.status, "waiting")))
+      .returning();
+
+    await db
+      .update(runs)
+      .set({ status: "in_progress" })
+      .where(eq(runs.id, job.runId));
+
+    return {
+      queueItemId: jobId,
+      runId: job.runId,
+      userId: job.userId,
+      threadId: job.threadId,
+      priority: job.priority as QueuePriority,
+    };
   }
 
   async function getStats(): Promise<QueueStats> {
+    const [queuedResult] = await db
+      .select({ count: count() })
+      .from(jobQueue)
+      .where(eq(jobQueue.status, "waiting"));
+
     const activeResults = await db
       .select({
-        userId: runs.userId,
+        userId: sql<string>`COALESCE(${runs.userId}, null)`,
         activeCount: count(),
       })
       .from(runs)
       .where(inArray(runs.status, ["in_progress", "awaiting_response"]))
-      .groupBy(runs.userId ?? sql`null`);
+      .groupBy(runs.userId);
 
     const totalActive = activeResults.reduce((sum, r) => sum + Number(r.activeCount), 0);
 
@@ -93,7 +125,7 @@ export function createQueueService(db: PostgresJsDatabase): QueueService {
     }
 
     return {
-      queueDepth: queue.length,
+      queueDepth: Number(queuedResult?.count ?? 0),
       activeRuns: totalActive,
       maxConcurrency: DEFAULT_GLOBAL_CONCURRENCY,
       perUserActiveRuns,
