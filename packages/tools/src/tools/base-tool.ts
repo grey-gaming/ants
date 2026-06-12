@@ -1,26 +1,27 @@
-import type { Tool, ToolDefinition, ToolResult } from "../types/tool";
-import { ValidationError, logger } from "@ants/core";
-import { z } from "zod";
+import type { Tool, ToolResult } from "../types/tool";
+import { logger } from "@ants/core";
+import type { ZodType } from "zod";
 
-export abstract class BaseTool implements Tool {
-  public name: string;
-  public description: string;
+export abstract class BaseTool<T extends ZodType = ZodType> implements Tool {
+  public name!: string;
+  public description!: string;
+  public parameters!: T;
 
-  protected constructor(def: ToolDefinition) {
-    if (!def.name) {
-      throw new ValidationError("Tool name is required");
+  protected constructor(def?: { name: string; description: string }) {
+    if (def) {
+      this.name = def.name;
+      this.description = def.description;
     }
-    if (!def.description) {
-      throw new ValidationError("Tool description is required");
-    }
-    this.name = def.name;
-    this.description = def.description;
   }
 
   async execute(input: unknown): Promise<ToolResult> {
-    logger.info(`Executing tool "${this.name}"`);
-    const result = await this._execute(input);
-    logger.info(`${this.name} executed successfully`);
+    logger.info("tools", `Executing tool "${this.name}"`);
+    const parsed = this.parameters?.safeParse(input);
+    if (parsed && !parsed.success) {
+      return { success: false, error: `Validation failed: ${parsed.error.message}` };
+    }
+    const result = await this._execute(parsed?.data ?? input);
+    logger.info("tools", `${this.name} executed successfully`);
     return result;
   }
 
