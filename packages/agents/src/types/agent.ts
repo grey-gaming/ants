@@ -1,4 +1,5 @@
 import type { Message } from "@ants/llm";
+import type { Tool } from "@ants/tools";
 
 export interface AgentResult {
   content: string;
@@ -14,5 +15,5 @@ export interface AgentDefinition {
 export interface Agent {
   name: string;
   description: string;
-  run(messages: Message[]): AgentResult;
+  run(messages: Message[], tools: Tool[]): Promise<AgentResult>;
 }
