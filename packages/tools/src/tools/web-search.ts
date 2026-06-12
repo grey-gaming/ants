@@ -1,77 +1,79 @@
-import type { ToolResult } from "@ants/tools";
-import { BaseTool } from "@ants/tools";
-import { logger } from "@ants/core";
 import { z } from "zod";
+import type { ToolResult } from "../types/tool";
+import { BaseTool } from "./base-tool";
 
-interface SearchResult {
-  title: string;
-  url: string;
-  snippet: string;
-}
-
-export class WebSearch extends BaseTool {
+export class WebSearch extends BaseTool<typeof WebSearch.parameters> {
   name = "web-search";
-  description = "Search the web for information";
-
+  description = "Search the web for relevant information";
   static parameters = z.object({
     query: z.string().min(1),
-    numResults: z.number().int().min(1).max(10).default(5),
+    numResults: z.number().int().min(1).max(10).optional(),
   });
-
   parameters = WebSearch.parameters;
 
-  constructor() {
-    super({ name: "web-search", description: "Search the web for information" });
-  }
+  protected async _execute(
+    input: z.infer<typeof WebSearch.parameters>
+  ): Promise<ToolResult> {
+    const { query, numResults = 5 } = input;
 
-  protected async _execute(input: unknown): Promise<ToolResult> {
-    const { query, numResults } = WebSearch.parameters.parse(input);
-    const baseUrl = process.env.SEARCH_API_URL ?? "https://api.duckduckgo.com/html";
+    const baseUrl =
+      process.env.SEARCH_API_URL ?? "https://html.duckduckgo.com/html/";
     const url = `${baseUrl}?q=${encodeURIComponent(query)}&count=${numResults}`;
 
-    logger.info("web-search", `Searching for: ${query}`);
-
     let response: Response;
+
     try {
       response = await fetch(url);
-    } catch {
-      return { success: false, error: "Network error: failed to reach search API" };
+    } catch (err) {
+      return {
+        success: false,
+        error: `Network error: ${err instanceof Error ? err.message : String(err)}`,
+      };
     }
 
     if (!response.ok) {
-      return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
     }
 
-    const html = await response.text();
-    const results = parseSearchResults(html);
-    return { success: true, data: results };
-  }
-}
-
-function parseSearchResults(html: string): SearchResult[] {
-  const results: SearchResult[] = [];
-  const titleRegex = /class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
-  const snippetRegex = /class="result__snippet"[^>]*>([^<]+)<\/a>/g;
-
-  const titles: { url: string; title: string }[] = [];
-  const snippets: string[] = [];
-
-  let match: RegExpExecArray | null;
-  while ((match = titleRegex.exec(html)) !== null) {
-    titles.push({ url: match[1], title: match[2] });
-  }
-  while ((match = snippetRegex.exec(html)) !== null) {
-    snippets.push(match[1]);
+    try {
+      const body = await response.text();
+      const results = this.parseResponse(body, numResults);
+      return { success: true, data: results };
+    } catch (err) {
+      return {
+        success: false,
+        error: `Parse error: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
   }
 
-  const count = Math.min(titles.length, snippets.length);
-  for (let i = 0; i < count; i++) {
-    results.push({
-      title: titles[i].title,
-      url: titles[i].url,
-      snippet: snippets[i],
-    });
+  private parseResponse(body: string, limit: number) {
+    const results: Array<{ title: string; url: string; snippet: string }> = [];
+
+    const articleRegex = /<a class="result__a" href="(.*?)".*?>(.*?)<\/a>.*?<a class="result__snippet"(?:.*?>(.*?)<\/a>)/gs;
+    let match;
+
+    while ((match = articleRegex.exec(body)) !== null && results.length < limit) {
+      const url = match[1];
+      const title = match[2];
+      const snippet = match[3];
+
+      if (title && title.trim()) {
+        results.push({
+          title: this.stripHtml(title),
+          url,
+          snippet: this.stripHtml(snippet),
+        });
+      }
+    }
+
+    return results;
   }
 
-  return results;
+  private stripHtml(html: string) {
+    return html.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').trim();
+  }
 }
