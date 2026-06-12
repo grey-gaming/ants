@@ -1,4 +1,4 @@
-import { eq, and, asc, lt } from "drizzle-orm";
+import { eq, and, asc, or, sql } from "drizzle-orm";
 import { messages, threads } from "@ants/store";
 import type { Message, NewMessage } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -21,6 +21,21 @@ interface MessageService {
   create(userId: string, input: MessageCreateInput): Promise<Message>;
   getById(userId: string, threadId: string, id: string): Promise<Message | null>;
   list(userId: string, threadId: string, options?: MessageListOptions): Promise<{ data: Message[]; nextCursor: string | null }>;
+}
+
+function encodeCursor(createdAt: Date, id: string): string {
+  return btoa(`${createdAt.toISOString()}~${id}`);
+}
+
+function decodeCursor(cursor: string | undefined): { dateStr: string; id: string } | null {
+  if (!cursor) return null;
+  try {
+    const decoded = Buffer.from(cursor, "base64").toString();
+    const [dateStr, id] = decoded.split("~");
+    return dateStr ? { dateStr, id: id || "" } : null;
+  } catch {
+    return null;
+  }
 }
 
 export function createMessageService(db: PostgresJsDatabase): MessageService {
@@ -79,30 +94,30 @@ export function createMessageService(db: PostgresJsDatabase): MessageService {
     await verifyThreadAccess(userId, threadId);
 
     const limit = options.limit ?? 50;
-    let query = db
-      .select()
-      .from(messages)
-      .where(eq(messages.threadId, threadId))
-      .orderBy(asc(messages.createdAt))
-      .limit(limit + 1);
+    const cursor = decodeCursor(options.cursor);
 
-    if (options.cursor) {
-      query = db
-        .select()
-        .from(messages)
-        .where(and(
-          eq(messages.threadId, threadId),
-          lt(messages.createdAt, new Date(options.cursor)),
-        ))
-        .orderBy(asc(messages.createdAt))
-        .limit(limit + 1);
+    const conditions: unknown[] = [eq(messages.threadId, threadId)];
+    if (cursor) {
+      conditions.push(or(
+        sql`${messages.createdAt} < ${cursor.dateStr}`,
+        and(
+          sql`${messages.createdAt} = ${cursor.dateStr}`,
+          sql`${messages.id} < ${cursor.id}`,
+        ),
+      ));
     }
 
-    const rows = await query;
+    const rows = await db
+      .select()
+      .from(messages)
+      .where(and(...conditions))
+      .orderBy(asc(messages.createdAt), asc(messages.id))
+      .limit(limit + 1);
+
     const hasMore = rows.length > limit;
     const data = rows.slice(0, limit);
     const nextCursor = hasMore && data.length > 0
-      ? data[data.length - 1].createdAt.toISOString()
+      ? encodeCursor(data[data.length - 1].createdAt, data[data.length - 1].id)
       : null;
 
     return { data, nextCursor };
