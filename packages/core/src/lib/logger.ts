@@ -9,6 +9,16 @@ const levelPriority: Record<LogLevel, number> = {
   error: 3,
 };
 
+function getLogLevel(): LogLevel {
+  try {
+    return config.logLevel;
+  } catch {
+    return "info";
+  }
+}
+
+let currentLogLevel = getLogLevel();
+
 export interface LogEntry {
   timestamp: string;
   level: LogLevel;
@@ -23,7 +33,7 @@ export interface LogEntry {
 }
 
 function shouldLog(level: LogLevel): boolean {
-  return levelPriority[level] >= levelPriority[config.logLevel];
+  return levelPriority[level] >= levelPriority[currentLogLevel];
 }
 
 export function log(

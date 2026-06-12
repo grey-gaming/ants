@@ -2,6 +2,8 @@ import { describe, test, expect } from "bun:test";
 import { createToolService } from "./tool-service";
 import { NotFoundError, ValidationError } from "../lib/errors";
 
+type thenable = Promise<unknown> & { then: () => void };
+
 function builder(result: unknown[]): thenable {
   return Object.assign(
     () => result,
@@ -60,10 +62,10 @@ describe("tool-service", () => {
   });
 
   test("filters list by userId when provided", async () => {
-    const tool: unknown = { id: "t-1", name: "test-tool", createdBy: "user-1" };
+    const tool = { id: "t-1", name: "test-tool", createdBy: "user-1" };
     const service = createToolService(makeMockDb([tool]));
 
     const result = await service.list({ userId: "user-1" });
-    expect(result).toEqual([tool]);
+    expect(result).toEqual([tool] as never[]);
   });
 });

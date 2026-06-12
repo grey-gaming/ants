@@ -1,4 +1,4 @@
-import { eq, and, desc, lt, inArray, count, or } from "drizzle-orm";
+import { eq, and, desc, lt, inArray, count, or, sql, type SQL } from "drizzle-orm";
 import { runs, runSteps } from "@ants/store";
 import type { Run, NewRun, RunStep } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -94,13 +94,13 @@ export function createRunService(db: PostgresJsDatabase): RunService {
           sql`${runs.createdAt} = ${cursor.dateStr}`,
           sql`${runs.id} < ${cursor.id}`,
         ),
-      ));
+      )!);
     }
 
     const rows = await db
       .select()
       .from(runs)
-      .where(and(...conditions))
+      .where(and(...conditions.filter(Boolean)))
       .orderBy(desc(runs.createdAt), desc(runs.id))
       .limit(limit + 1);
 

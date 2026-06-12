@@ -2,8 +2,8 @@ import { describe, test, expect } from 'bun:test';
 import * as dbModule from './db';
 
 describe('db — Module Exports', () => {
-  test('$db is exported', () => {
-    expect(dbModule.$db).not.toBeNull();
+  test('$db is exported (nullable before init)', () => {
+    expect(dbModule.$db).toBeDefined();
   });
 
   test('connect function is exported', () => {

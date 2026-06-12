@@ -1,4 +1,4 @@
-import { eq, and, desc, or, sql } from "drizzle-orm";
+import { eq, and, desc, or, sql, type SQL } from "drizzle-orm";
 import { threads } from "@ants/store";
 import type { Thread, NewThread } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -79,13 +79,13 @@ export function createThreadService(db: PostgresJsDatabase): ThreadService {
           sql`${threads.createdAt} = ${cursor.dateStr}`,
           sql`${threads.id} < ${cursor.id}`,
         ),
-      ));
+      )!);
     }
 
     const rows = await db
       .select()
       .from(threads)
-      .where(and(...conditions))
+      .where(and(...conditions.filter(Boolean)))
       .orderBy(desc(threads.createdAt), desc(threads.id))
       .limit(limit + 1);
 

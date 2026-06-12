@@ -6,8 +6,7 @@
   "main": "src/index.ts",
   "dependencies": {
     "@ants/core": "workspace:*",
-    "ai": "6.0.197",
-    "ollama": "0.6.3"
+    "ai": "6.0.197"
   },
   "devDependencies": {
     "typescript": "6.0.3"

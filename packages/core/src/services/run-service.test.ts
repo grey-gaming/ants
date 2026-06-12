@@ -2,6 +2,8 @@ import { describe, test, expect } from "bun:test";
 import { createRunService } from "./run-service";
 import { NotFoundError, ConflictError, ValidationError } from "../lib/errors";
 
+type thenable = Promise<unknown> & { then: () => void };
+
 function builder(result: unknown[]): thenable {
   return Object.assign(
     () => result,

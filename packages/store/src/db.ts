@@ -1,17 +1,16 @@
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import postgres, { type PostgresPool } from 'postgres';
+import postgres from 'postgres';
+import type { Sql } from 'postgres';
 
-const DATABASE_URL = process.env.DATABASE_URL;
+let pool: Sql | null = null;
 
-if (!DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is required');
-}
-
-let pool: PostgresPool | null = null;
-
-export function createPool(): PostgresPool {
+export function createPool(): Sql {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error('DATABASE_URL environment variable is required');
+  }
   if (!pool) {
-    pool = postgres(DATABASE_URL, { max: 10 });
+    pool = postgres(url, { max: 10 });
    }
   return pool;
 }
@@ -25,9 +24,6 @@ export function initDb(): PostgresJsDatabase {
    }
   return $db;
 }
-
-// Initialize the db instance on module load
-initDb();
 
 /**
  * Connect to the database.

@@ -2,6 +2,9 @@ import { describe, test, expect } from "bun:test";
 import { createQueueService } from "./queue-service";
 import { RateLimitError } from "../lib/errors";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type thenable = any;
+
 function makeMockDb(perUser: Record<string, number>, queuedCount: number = 0): never {
   const activeResults = Object.entries(perUser).map(([userId, count]) => ({
     userId,

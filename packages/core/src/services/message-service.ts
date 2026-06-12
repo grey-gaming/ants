@@ -1,4 +1,4 @@
-import { eq, and, asc, or, sql } from "drizzle-orm";
+import { eq, and, asc, or, sql, type SQL } from "drizzle-orm";
 import { messages, threads } from "@ants/store";
 import type { Message, NewMessage } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -96,7 +96,7 @@ export function createMessageService(db: PostgresJsDatabase): MessageService {
     const limit = options.limit ?? 50;
     const cursor = decodeCursor(options.cursor);
 
-    const conditions: unknown[] = [eq(messages.threadId, threadId)];
+    const conditions: SQL[] = [eq(messages.threadId, threadId)];
     if (cursor) {
       conditions.push(or(
         sql`${messages.createdAt} < ${cursor.dateStr}`,
@@ -104,13 +104,13 @@ export function createMessageService(db: PostgresJsDatabase): MessageService {
           sql`${messages.createdAt} = ${cursor.dateStr}`,
           sql`${messages.id} < ${cursor.id}`,
         ),
-      ));
+      )!);
     }
 
     const rows = await db
       .select()
       .from(messages)
-      .where(and(...conditions))
+      .where(and(...conditions.filter(Boolean)))
       .orderBy(asc(messages.createdAt), asc(messages.id))
       .limit(limit + 1);
 

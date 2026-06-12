@@ -13,7 +13,7 @@ const configSchema = z.object({
   contextWindowTokens: z.coerce.number().int().positive().default(32000),
 });
 
-export const config = configSchema.parse({
+const getRawValues = () => ({
   databaseUrl: process.env.DATABASE_URL,
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL,
   apiKeySecret: process.env.API_KEY_SECRET,
@@ -25,3 +25,24 @@ export const config = configSchema.parse({
   maxOutputChars: process.env.MAX_OUTPUT_CHARS,
   contextWindowTokens: process.env.CONTEXT_WINDOW_TOKENS,
 });
+
+let _parsed: z.infer<typeof configSchema> | undefined;
+
+function parse(): z.infer<typeof configSchema> {
+  if (_parsed) return _parsed;
+  _parsed = configSchema.parse(getRawValues());
+  return _parsed;
+}
+
+export const config = {
+  get databaseUrl() { return parse().databaseUrl; },
+  get ollamaBaseUrl() { return parse().ollamaBaseUrl; },
+  get apiKeySecret() { return parse().apiKeySecret; },
+  get jwtSecret() { return parse().jwtSecret; },
+  get logLevel() { return parse().logLevel; },
+  get shutdownTimeoutSeconds() { return parse().shutdownTimeoutSeconds; },
+  get maxConcurrentRuns() { return parse().maxConcurrentRuns; },
+  get toolTimeoutSeconds() { return parse().toolTimeoutSeconds; },
+  get maxOutputChars() { return parse().maxOutputChars; },
+  get contextWindowTokens() { return parse().contextWindowTokens; },
+};
