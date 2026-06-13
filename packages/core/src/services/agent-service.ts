@@ -27,7 +27,7 @@ interface AgentListOptions {
   limit?: number;
 }
 
-interface AgentService {
+export interface AgentService {
   register(input: AgentRegisterInput): Promise<AgentType>;
   list(options?: AgentListOptions): Promise<AgentType[]>;
   getById(id: string): Promise<AgentType | null>;

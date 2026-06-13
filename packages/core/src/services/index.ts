@@ -4,3 +4,7 @@ export { createRunService } from "./run-service";
 export { createAgentService } from "./agent-service";
 export { createToolService } from "./tool-service";
 export { createQueueService } from "./queue-service";
+export { createUserService } from "./user-service";
+export { createApiKeyService } from "./api-key-service";
+export { createSettingsService } from "./settings-service";
+export { createInviteCodeService } from "./invite-code-service";

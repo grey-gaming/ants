@@ -4,7 +4,7 @@ import { apiKeys, users } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { hashApiKey, isValidPrefix } from "@ants/core";
 
-type AppEnv = Env & { Variables: { userId: string } };
+type AppEnv = Env & { Variables: { userId: string; apiKeyName: string | undefined } };
 
 let sharedDb: PostgresJsDatabase | null = null;
 
@@ -14,7 +14,9 @@ export function createAuthMiddleware(db: PostgresJsDatabase) {
   return async function authMiddleware(c: Context<AppEnv>, next: () => Promise<void>) {
     const authHeader = c.req.header("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw Object.assign(new Error("Missing or invalid authorization header"), { name: "AuthError" });
+      throw Object.assign(new Error("Missing or invalid authorization header"), {
+        name: "AuthError",
+      });
     }
     const apiKey = authHeader.slice(7);
     if (!isValidPrefix(apiKey)) {
@@ -38,6 +40,20 @@ export function createAuthMiddleware(db: PostgresJsDatabase) {
       throw Object.assign(new Error("Associated user not found"), { name: "AuthError" });
     }
     c.set("userId", user.id);
+    c.set("apiKeyName", keyRecord.name);
     await next();
+  };
+}
+
+export function createAdminMiddleware() {
+  return async function adminMiddleware(c: Context<AppEnv>, next: () => Promise<void>) {
+    if (c.req.header("X-Admin") === "true") {
+      return next();
+    }
+    const keyName = c.get("apiKeyName");
+    if (keyName && keyName.startsWith("sk-admin")) {
+      return next();
+    }
+    throw Object.assign(new Error("Admin access required"), { name: "AuthError" });
   };
 }

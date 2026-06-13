@@ -121,3 +121,18 @@ export const settingUpsertRequestSchema = z.object({
   storeKey: z.string().min(1),
   storeValue: z.any(),
 });
+
+export const registerUserRequestSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(1),
+  inviteCode: z.string().optional(),
+});
+
+export const loginRequestSchema = z.object({
+  apiKey: z.string().min(1),
+});
+
+export const createApiKeyRequestSchema = z.object({
+  name: z.string().min(1),
+  expiresAt: z.string().datetime().optional(),
+});

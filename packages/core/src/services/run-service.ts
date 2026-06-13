@@ -22,7 +22,7 @@ interface RunListOptions {
   status?: RunStatus;
 }
 
-interface RunService {
+export interface RunService {
   create(input: RunCreateInput): Promise<Run>;
   getById(id: string): Promise<Run | null>;
   list(threadId: string, options?: RunListOptions): Promise<{ data: Run[]; nextCursor: string | null }>;

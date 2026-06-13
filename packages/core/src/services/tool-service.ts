@@ -24,7 +24,7 @@ interface ToolListOptions {
   userId?: string | null;
 }
 
-interface ToolService {
+export interface ToolService {
   register(userId: string | null, input: ToolRegisterInput): Promise<Tool>;
   list(options?: ToolListOptions): Promise<Tool[]>;
   getById(id: string): Promise<Tool | null>;

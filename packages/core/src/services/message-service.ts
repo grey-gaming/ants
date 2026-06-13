@@ -17,7 +17,7 @@ interface MessageCreateInput {
   metadata?: Record<string, unknown> | null;
 }
 
-interface MessageService {
+export interface MessageService {
   create(userId: string, input: MessageCreateInput): Promise<Message>;
   getById(userId: string, threadId: string, id: string): Promise<Message | null>;
   list(userId: string, threadId: string, options?: MessageListOptions): Promise<{ data: Message[]; nextCursor: string | null }>;

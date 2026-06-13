@@ -45,7 +45,7 @@ interface DequeueResult {
   priority: QueuePriority;
 }
 
-interface QueueService {
+export interface QueueService {
   enqueue(input: EnqueueInput): Promise<void>;
   dequeue(): Promise<DequeueResult | null>;
   getStats(): Promise<QueueStats>;

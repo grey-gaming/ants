@@ -9,3 +9,4 @@ export { countTokens } from "./utils/token-counter";
 export { sseFormat, createSSEStream } from "./utils/stream-utils";
 export { OllamaProvider, type OllamaConfig } from "./providers/ollama-provider";
 export { ollamaLanguageModel } from "./providers/ollama-language-model";
+export { MlxProvider, type MlxConfig } from "./providers/mlx-provider";
