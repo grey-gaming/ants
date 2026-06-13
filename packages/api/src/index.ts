@@ -1,4 +1,4 @@
-import { $db } from "@ants/store";
+import { initDb } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { buildApp } from "./server";
 
@@ -6,6 +6,9 @@ let sharedApp: ReturnType<typeof buildApp> | null = null;
 
 export function getApp(dbOnly?: PostgresJsDatabase): ReturnType<typeof buildApp> {
   if (!sharedApp) {
+    if (!dbOnly) {
+      initDb();
+    }
     sharedApp = buildApp(dbOnly);
   }
   return sharedApp;

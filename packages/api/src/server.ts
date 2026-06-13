@@ -4,7 +4,7 @@ import { $db } from "@ants/store";
 import { config, createRunExecutor, createQueueWorker } from "@ants/core";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { configureServices, type ConfiguredServices } from "./app";
-import { errorHandler } from "./middleware/error";
+import { errorHandler, registerErrorHandler } from "./middleware/error";
 import { createAuthMiddleware } from "./middleware/auth";
 import { createThreadRoutes } from "./routes/threads";
 import { createMessageRoutes } from "./routes/messages";
@@ -70,6 +70,7 @@ export function buildApp(dbOnly?: PostgresJsDatabase): Hono<AppEnv> & { worker: 
   const app = new Hono<AppEnv>() as Hono<AppEnv> & { worker: typeof worker; stop: () => Promise<void> };
 
   app.use("*", errorHandler);
+  registerErrorHandler(app);
   app.get("/health", (c) => c.json({ status: "ok" }));
   app.use("/v1/*", authMiddleware);
 
@@ -82,7 +83,7 @@ export function buildApp(dbOnly?: PostgresJsDatabase): Hono<AppEnv> & { worker: 
   app.route("/v1/queue", createQueueRoutes(services));
   app.route("/v1/stream", createStreamRoutes(services));
   app.route("/v1/auth", createAuthRoutes(services));
-  app.route("/v1/users", createUserRoutes(services));
+  app.route("/v1/users", createUserRoutes(services, db));
   app.route("/v1/settings", createSettingsRoutes(services));
   app.route("/v1/invite-codes", createInviteCodesRoutes(services));
   app.route("/v1/worker", createWorkerRoutes(services, workerManager));

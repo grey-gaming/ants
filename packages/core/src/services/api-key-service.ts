@@ -2,7 +2,7 @@ import { eq, desc } from "drizzle-orm";
 import { apiKeys, users } from "@ants/store";
 import type { ApiKey, User } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { generateApiKey, hashApiKey, validateApiKey } from "../auth/api-key";
+import { generateApiKey, hashApiKey, validateApiKey, isValidPrefix } from "../auth/api-key";
 import { NotFoundError, AuthError } from "../lib/errors";
 
 interface ApiKeyListResult {
@@ -65,16 +65,20 @@ export function createApiKeyService(db: PostgresJsDatabase): ApiKeyService {
   }
 
   async function login(rawKey: string): Promise<{ user: User; key: string }> {
-    const hashed = await hashApiKey(rawKey);
-    const isValid = await validateApiKey(rawKey, hashed);
-    if (!isValid) throw new AuthError("Invalid API key");
-    const [keyRecord] = await db.select().from(apiKeys)
-      .where(eq(apiKeys.keyHash, hashed)).limit(1);
-    if (!keyRecord) throw new AuthError("Invalid API key");
-    const [user] = await db.select().from(users)
-      .where(eq(users.id, keyRecord.userId)).limit(1);
-    if (!user) throw new AuthError("User not found for API key");
-    return { user, key: rawKey };
+    if (!isValidPrefix(rawKey)) {
+      throw new AuthError("Invalid API key");
+    }
+    const allKeys = await db.select().from(apiKeys);
+    for (const keyRecord of allKeys) {
+      const isValid = await validateApiKey(rawKey, keyRecord.keyHash);
+      if (isValid) {
+        const [user] = await db.select().from(users)
+          .where(eq(users.id, keyRecord.userId)).limit(1);
+        if (!user) throw new AuthError("User not found for API key");
+        return { user, key: rawKey };
+      }
+    }
+    throw new AuthError("Invalid API key");
   }
 
   return { generate, list, revoke, getAll, login };
