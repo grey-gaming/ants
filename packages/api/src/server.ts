@@ -31,6 +31,7 @@ type AppEnv = Env & { Variables: { userId: string } };
 let sharedServices: ConfiguredServices | null = null;
 let sharedDb: PostgresJsDatabase | null = null;
 let sharedWorker: ReturnType<typeof createQueueWorker> | null = null;
+let discoveryDone = false;
 
 export function buildApp(dbOnly?: PostgresJsDatabase): Hono<AppEnv> & { worker: ReturnType<typeof createQueueWorker>; stop: () => Promise<void> } {
   sharedDb = dbOnly || $db;
@@ -43,7 +44,8 @@ export function buildApp(dbOnly?: PostgresJsDatabase): Hono<AppEnv> & { worker: 
   const services = sharedServices;
   const db = sharedDb;
 
-  // ─── Auto-discover and register tools + agents ──────────────────────────
+  // ─── Auto-discover and register tools + agents ──────────────────────
+  // Always run discovery on buildApp to handle DB resets
   const toolEntries = toolRegistry.getAll().map((entry) => ({
     name: entry.definition.name,
     description: entry.definition.description,
@@ -61,6 +63,7 @@ export function buildApp(dbOnly?: PostgresJsDatabase): Hono<AppEnv> & { worker: 
   }));
 
   void discoverAndRegister(db, toolEntries, agentEntries).then((result) => {
+    discoveryDone = true;
     const toolsMsg = result.toolsRegistered.length > 0
       ? `Registered tools: ${result.toolsRegistered.join(", ")}`
       : result.toolsSkipped.length > 0

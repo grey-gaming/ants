@@ -55,7 +55,7 @@ export function createQueueWorker(
   } | null> {
     const [job] = await db.select().from(jobQueue)
       .where(eq(jobQueue.status, "waiting"))
-      .orderBy(sql`FIELD(job_queue.priority, 'critical', 'high', 'normal', 'low')`)
+      .orderBy(sql`CASE job_queue.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 WHEN 'low' THEN 3 END`)
       .limit(1);
 
     if (!job) return null;

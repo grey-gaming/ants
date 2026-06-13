@@ -26,6 +26,12 @@ export function serveApp() {
 
 // CLI entry point: `bun run packages/api/src/index.ts`
 if (import.meta.main) {
-  const server = serveApp();
+  const app = getApp();
+  const port = parseInt(process.env.PORT ?? "3000", 10);
+  const server = Bun.serve({
+    fetch: app.fetch.bind(app),
+    port,
+  });
+  app.worker.start();
   console.log(`ANTS API listening on http://localhost:${server.port}`);
 }

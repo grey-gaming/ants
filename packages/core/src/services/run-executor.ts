@@ -110,7 +110,7 @@ export function createRunExecutor(
 
             const [tcRow] = await db.insert(toolCalls).values({
               runStepId: step.id,
-              toolId: toolRow?.id ?? "",
+              toolId: toolRow?.id,
               name: tc.name,
               arguments: tc.args,
               status: "in_progress",

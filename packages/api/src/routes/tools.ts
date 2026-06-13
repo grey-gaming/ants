@@ -17,8 +17,7 @@ export function createToolRoutes(svc: Services) {
   });
 
   app.get("/", async (c) => {
-    const userId = c.get("userId");
-    const result = await svc.tool.list({ userId, limit: 100 });
+    const result = await svc.tool.list({ limit: 100 });
     return c.json(result, 200);
   });
 

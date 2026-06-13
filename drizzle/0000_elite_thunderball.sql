@@ -62,6 +62,7 @@ CREATE TABLE "run_steps" (
 CREATE TABLE "runs" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"thread_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
 	"agent_type_id" uuid NOT NULL,
 	"parent_run_id" uuid,
 	"status" "run_status" DEFAULT 'queued' NOT NULL,
@@ -94,7 +95,7 @@ CREATE TABLE "threads" (
 CREATE TABLE "tool_calls" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"run_step_id" uuid NOT NULL,
-	"tool_id" uuid NOT NULL,
+	"tool_id" uuid,
 	"name" text NOT NULL,
 	"arguments" jsonb,
 	"result" jsonb,
@@ -110,6 +111,8 @@ CREATE TABLE "tools" (
 	"parameters_schema" jsonb,
 	"type" "tool_type" NOT NULL,
 	"active" boolean DEFAULT true NOT NULL,
+	"created_by" uuid,
+	"updated_by" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "tools_name_unique" UNIQUE("name")
@@ -129,10 +132,13 @@ ALTER TABLE "messages" ADD CONSTRAINT "messages_thread_id_threads_id_fk" FOREIGN
 ALTER TABLE "messages" ADD CONSTRAINT "messages_agent_type_id_agent_types_id_fk" FOREIGN KEY ("agent_type_id") REFERENCES "public"."agent_types"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "run_steps" ADD CONSTRAINT "run_steps_run_id_runs_id_fk" FOREIGN KEY ("run_id") REFERENCES "public"."runs"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "runs" ADD CONSTRAINT "runs_thread_id_threads_id_fk" FOREIGN KEY ("thread_id") REFERENCES "public"."threads"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "runs" ADD CONSTRAINT "runs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "runs" ADD CONSTRAINT "runs_agent_type_id_agent_types_id_fk" FOREIGN KEY ("agent_type_id") REFERENCES "public"."agent_types"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "runs" ADD CONSTRAINT "runs_parent_run_id_runs_id_fk" FOREIGN KEY ("parent_run_id") REFERENCES "public"."runs"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "settings" ADD CONSTRAINT "settings_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threads" ADD CONSTRAINT "threads_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tools" ADD CONSTRAINT "tools_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tools" ADD CONSTRAINT "tools_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tool_calls" ADD CONSTRAINT "tool_calls_run_step_id_run_steps_id_fk" FOREIGN KEY ("run_step_id") REFERENCES "public"."run_steps"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tool_calls" ADD CONSTRAINT "tool_calls_tool_id_tools_id_fk" FOREIGN KEY ("tool_id") REFERENCES "public"."tools"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "api_keys_user_id_index" ON "api_keys" USING btree ("user_id");--> statement-breakpoint
@@ -145,5 +151,7 @@ CREATE INDEX "runs_parent_run_id_index" ON "runs" USING btree ("parent_run_id");
 CREATE INDEX "settings_key_index" ON "settings" USING btree ("key");--> statement-breakpoint
 CREATE INDEX "settings_user_id_index" ON "settings" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "threads_user_id_index" ON "threads" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "tools_created_by_index" ON "tools" USING btree ("created_by");--> statement-breakpoint
 CREATE INDEX "tool_calls_run_step_id_index" ON "tool_calls" USING btree ("run_step_id");--> statement-breakpoint
-CREATE INDEX "tool_calls_tool_id_index" ON "tool_calls" USING btree ("tool_id");
+CREATE INDEX "tool_calls_tool_id_index" ON "tool_calls" USING btree ("tool_id");--> statement-breakpoint
+CREATE INDEX "runs_user_id_index" ON "runs" USING btree ("user_id");

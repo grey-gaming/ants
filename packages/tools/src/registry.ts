@@ -54,10 +54,15 @@ function zodToJsonSchema(schema: any): Record<string, unknown> {
       const shape = (schema as any).shape;
       const properties: Record<string, unknown> = {};
       const required: string[] = [];
-      for (const [key, value] of Object.entries(shape) as [string, any][]) {
-        const vDef = value._def;
+      // ZodObject.shape is a function that returns an object — call it
+      const shapeObj = typeof shape === "function" ? shape() : shape;
+      const keys = Object.keys(shapeObj);
+      for (const key of keys) {
+        const valueDef = shapeObj[key];
+        const vDef = valueDef?._def;
+        if (!vDef) continue;
         properties[key] = zodToJsonProperty(vDef);
-        const isOptional = vDef.typeName === "ZodOptional" || vDef.optional;
+        const isOptional = vDef.typeName === "ZodOptional" || valueDef.optional;
         if (!isOptional) {
           required.push(key);
         }

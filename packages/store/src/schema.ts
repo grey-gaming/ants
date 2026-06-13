@@ -234,7 +234,7 @@ export const runSteps = pgTable('run_steps', {
 export const toolCalls = pgTable('tool_calls', {
   id: uuid('id').primaryKey().$default(() => sql`gen_random_uuid()`),
   runStepId: uuid('run_step_id').notNull().references(() => runSteps.id),
-  toolId: uuid('tool_id').notNull().references(() => tools.id),
+  toolId: uuid('tool_id').references(() => tools.id),
   name: text('name').notNull(),
   arguments: jsonb('arguments').$type<Record<string, unknown>>(),
   result: jsonb('result').$type<Record<string, unknown>>(),
