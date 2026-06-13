@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "hono/types";
 import { $db } from "@ants/store";
-import { config, createRunExecutor, createQueueWorker } from "@ants/core";
+import { config, createRunExecutor, createQueueWorker, discoverAndRegister, logger } from "@ants/core";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { configureServices, type ConfiguredServices } from "./app";
 import { errorHandler, registerErrorHandler } from "./middleware/error";
@@ -22,6 +22,8 @@ import { createRunStepsRoutes } from "./routes/run-steps";
 import { createWorkerRoutes } from "./routes/worker";
 import { createWorkerManager } from "./services/worker-manager";
 import { MlxProvider, type LLMProvider } from "@ants/llm";
+import { toolRegistry } from "@ants/tools";
+import { agentRegistry } from "@ants/agents";
 
 export type Services = ConfiguredServices;
 type AppEnv = Env & { Variables: { userId: string } };
@@ -40,6 +42,39 @@ export function buildApp(dbOnly?: PostgresJsDatabase): Hono<AppEnv> & { worker: 
   }
   const services = sharedServices;
   const db = sharedDb;
+
+  // ─── Auto-discover and register tools + agents ──────────────────────────
+  const toolEntries = toolRegistry.getAll().map((entry) => ({
+    name: entry.definition.name,
+    description: entry.definition.description,
+    type: "builtin" as const,
+    parametersSchema: toolRegistry.zodToJsonSchema(entry.parameters),
+  }));
+
+  const agentEntries = agentRegistry.getAll().map((agent) => ({
+    name: agent.name,
+    tier: agent.tier,
+    description: agent.description,
+    modelConfig: agent.defaultModelConfig ?? null,
+    capabilities: agent.defaultCapabilities ?? null,
+    toolNames: agent.toolNames ?? null,
+  }));
+
+  void discoverAndRegister(db, toolEntries, agentEntries).then((result) => {
+    const toolsMsg = result.toolsRegistered.length > 0
+      ? `Registered tools: ${result.toolsRegistered.join(", ")}`
+      : result.toolsSkipped.length > 0
+        ? `Tools already registered: ${result.toolsSkipped.join(", ")}`
+        : "No tools discovered";
+    const agentsMsg = result.agentsRegistered.length > 0
+      ? `Registered agents: ${result.agentsRegistered.join(", ")}`
+      : result.agentsSkipped.length > 0
+        ? `Agents already registered: ${result.agentsSkipped.join(", ")}`
+        : "No agents discovered";
+    logger.info("startup", `${toolsMsg} | ${agentsMsg}`);
+  }).catch((err) => {
+    logger.error("startup", `Discovery failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
 
   const authMiddleware = createAuthMiddleware(sharedDb);
 

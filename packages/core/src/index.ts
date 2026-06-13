@@ -32,6 +32,7 @@ export { createQueueService, type QueueService, type QueuePriority } from "./ser
 export { createQueueWorker, type QueueWorker } from "./services/queue-worker";
 export { createRunExecutor, type RunEvent } from "./services/run-executor";
 export { eventBus } from "./services/event-bus";
+export { discoverAndRegister } from "./services/discovery-service";
 export { createUserService } from "./services/user-service";
 export { createApiKeyService } from "./services/api-key-service";
 export { createSettingsService } from "./services/settings-service";

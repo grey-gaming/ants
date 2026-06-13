@@ -5,6 +5,7 @@ import {
 } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { Message, LLMProvider } from "@ants/llm";
+import { toolRegistry } from "@ants/tools";
 import type { Tool } from "@ants/tools";
 import { NotFoundError, InternalError, logger, truncateOutput } from "../index";
 import type { RunService, MessageService, AgentService, ToolService } from "../index";
@@ -220,7 +221,10 @@ async function executeTool(
     return { error: `Unknown tool, result: ${JSON.stringify(args)}` };
   }
 
-  // For now, return the args as the tool result.
-  // Actual tool execution would go through @ants/tools registry here.
-  return { success: true, data: args };
+  // Execute through the tool registry — resolves to the actual tool class
+  const result = await toolRegistry.execute(toolRow.name, args);
+  if (!result.success) {
+    return { success: false, error: result.error ?? "Tool execution failed" };
+  }
+  return { success: true, data: result.data };
 }
