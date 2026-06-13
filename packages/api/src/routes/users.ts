@@ -23,7 +23,10 @@ export function createUserRoutes(svc: Services, db: any) {
     return c.json(result, 200);
   });
 
-  app.get("/", adminMiddleware, async (c) => {
+  app.get("/", authMiddleware, async (c) => {
+    if (c.req.header("X-Admin") !== "true") {
+      return c.json({ error: "Admin access required" }, 401);
+    }
     const users = await svc.user.list("", { limit: 100 });
     return c.json(users, 200);
   });

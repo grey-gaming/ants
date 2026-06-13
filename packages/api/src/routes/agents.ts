@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "hono/types";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../utils/validator";
 import { registerAgentRequestSchema } from "../schemas/request";
 import type { Services } from "../types";
 
@@ -25,6 +25,19 @@ export function createAgentRoutes(svc: Services) {
   app.get("/:id", async (c) => {
     const result = await svc.agent.getById(c.req.param("id"));
     if (!result) return c.json({ error: "Agent not found" }, 404);
+    return c.json(result, 200);
+  });
+
+  app.patch("/:id", zValidator("json", registerAgentRequestSchema.partial()), async (c) => {
+    const id = c.req.param("id");
+    const body = c.req.valid("json");
+    const result = await svc.agent.update(id, {
+      name: body.name,
+      description: body.description,
+      modelConfig: body.modelConfig,
+      capabilities: body.capabilities,
+      toolIds: body.toolIds,
+    });
     return c.json(result, 200);
   });
 

@@ -81,8 +81,8 @@ export const createThreadRequestSchema = z.object({
 
 export const createRunRequestSchema = z.object({
   threadId: z.string().uuid(),
-  agentTypeId: z.string().uuid(),
-  messages: z.array(z.string()).min(1),
+  agentTypeId: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/),
+  messages: z.array(z.string()).min(1).optional(),
   modelConfig: z.record(z.string(), z.any()).optional(),
   parentRunId: z.string().uuid().optional(),
 });

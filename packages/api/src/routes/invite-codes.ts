@@ -22,7 +22,7 @@ export function createInviteCodesRoutes(svc: Services) {
     const body = await c.req.json();
     const parsed = generateCodeSchema.parse(body);
     const codes = await svc.inviteCode.generate(parsed.count, parsed.expiresAt ? new Date(parsed.expiresAt) : undefined);
-    return c.json(codes, 201);
+    return c.json(codes, 200);
   });
 
   return app;

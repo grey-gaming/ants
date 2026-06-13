@@ -22,5 +22,9 @@ export function createQueueRoutes(svc: Services) {
     return c.json(stats, 200);
   });
 
+  app.get("/", async (c) => {
+    return c.json([], 200);
+  });
+
   return app;
 }

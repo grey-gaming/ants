@@ -17,7 +17,7 @@ type RunEventWithId = RunEvent & { runId?: string };
 export function createStreamRoutes(svc: Services) {
   const app = new Hono<AppEnv>();
 
-  app.get("/threads/:threadId/runs/:runId/stream", async (c) => {
+  app.get("/:threadId/runs/:runId/stream", async (c) => {
     const threadId = c.req.param("threadId");
     const runId = c.req.param("runId");
     const userId = c.get("userId");
@@ -46,11 +46,11 @@ export function createStreamRoutes(svc: Services) {
 
         const keepaliveId = setInterval(() => {
           try {
-            controller.enqueue(encodeSSE(": keepalive\n\n"));
+            controller.enqueue(encodeSSE(`event: ping\ndata: keepalive\n\n`));
           } catch {
             // Stream already closed
           }
-        }, 15000);
+        }, 2000);
 
         c.req.raw.signal.addEventListener("abort", () => {
           cleanup?.();

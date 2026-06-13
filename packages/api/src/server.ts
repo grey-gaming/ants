@@ -81,7 +81,6 @@ export function buildApp(dbOnly?: PostgresJsDatabase): Hono<AppEnv> & { worker: 
   app.route("/v1/agents", createAgentRoutes(services));
   app.route("/v1/tools", createToolRoutes(services));
   app.route("/v1/queue", createQueueRoutes(services));
-  app.route("/v1/stream", createStreamRoutes(services));
   app.route("/v1/auth", createAuthRoutes(services));
   app.route("/v1/users", createUserRoutes(services, db));
   app.route("/v1/settings", createSettingsRoutes(services));
@@ -89,6 +88,8 @@ export function buildApp(dbOnly?: PostgresJsDatabase): Hono<AppEnv> & { worker: 
   app.route("/v1/worker", createWorkerRoutes(services, workerManager));
   app.route("/v1/threads/:threadId", createThreadActivityRoutes(db, services));
   app.route("/v1/threads/:threadId/runs/:runId", createRunStepsRoutes(db, services));
+  app.route("/v1/runs/:runId", createRunStepsRoutes(db, services));
+  app.route("/v1/threads", createStreamRoutes(services));
 
   app.worker = worker;
   app.stop = async () => {

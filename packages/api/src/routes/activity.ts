@@ -11,7 +11,7 @@ type AppEnv = Env & { Variables: { userId: string } };
 export function createThreadActivityRoutes(db: PostgresJsDatabase, svc: Services) {
   const app = new Hono<AppEnv>();
 
-  app.get("/:threadId/activity", async (c) => {
+  app.get("/activity", async (c) => {
     const threadId = c.req.param("threadId");
     const userId = c.get("userId");
 

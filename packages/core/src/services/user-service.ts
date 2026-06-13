@@ -34,15 +34,23 @@ export function createUserService(db: PostgresJsDatabase): UserService {
   async function create(email: string, name: string, inviteCode?: string): Promise<User> {
     if (!email?.trim()) throw new ValidationError("Email is required");
     if (!name?.trim()) throw new ValidationError("Name is required");
-    if (inviteCode) {
-      await checkInviteCode(inviteCode);
-      await db.update(inviteCodes).set({ used: true })
-        .where(eq(inviteCodes.code, inviteCode));
+    if (!inviteCode) {
+      throw new ConflictError("Invite code required");
     }
-    const [user] = await db.insert(users).values({
-      email: email.trim().toLowerCase(), name: name.trim(),
-    }).returning();
-    return user;
+    await checkInviteCode(inviteCode);
+    await db.update(inviteCodes).set({ used: true })
+      .where(eq(inviteCodes.code, inviteCode));
+    try {
+      const [user] = await db.insert(users).values({
+        email: email.trim().toLowerCase(), name: name.trim(),
+      }).returning();
+      return user;
+    } catch (err: unknown) {
+      if (err instanceof Error && (err.message.includes("23505") || err.message.includes("unique"))) {
+        throw new ConflictError("Email already registered");
+      }
+      throw err;
+    }
   }
 
   async function getById(id: string): Promise<User | null> {

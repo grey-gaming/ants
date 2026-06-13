@@ -49,7 +49,7 @@ export function createAgentService(db: PostgresJsDatabase): AgentService {
         description: input.description ?? "",
         modelConfig: input.modelConfig ?? null,
         capabilities: input.capabilities ?? null,
-        toolIds: input.toolIds ?? null,
+        toolIds: input.toolIds && input.toolIds.length > 0 ? input.toolIds : null,
         active: true,
       })
       .returning();

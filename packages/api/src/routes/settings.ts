@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "hono/types";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../utils/validator";
 import { settingUpsertRequestSchema } from "../schemas/request";
 import type { Services } from "../types";
 
@@ -21,10 +21,17 @@ export function createSettingsRoutes(svc: Services) {
     return c.json(setting, 200);
   });
 
-  app.patch("/:key", zValidator("json", settingUpsertRequestSchema), async (c) => {
+  app.patch("/:key", async (c) => {
     const key = c.req.param("key");
-    const body = c.req.valid("json");
-    const setting = await svc.settings.upsert({ key, value: body.storeValue });
+    const body = await c.req.json();
+    if (Object.keys(body).length === 0) {
+      return c.json({ error: "No fields to update" }, 422);
+    }
+    const setting = await svc.settings.upsert({
+      key,
+      value: body.value ?? {},
+      isGlobal: body.isGlobal ?? false,
+    });
     return c.json(setting, 200);
   });
 

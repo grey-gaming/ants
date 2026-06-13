@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "hono/types";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../utils/validator";
 import { registerToolRequestSchema } from "../schemas/request";
 import type { Services } from "../types";
 
@@ -31,6 +31,9 @@ export function createToolRoutes(svc: Services) {
   app.patch("/:id", async (c) => {
     const userId = c.get("userId");
     const body = await c.req.json();
+    if (Object.keys(body).length === 0) {
+      return c.json({ error: "No fields to update" }, 422);
+    }
     const result = await svc.tool.update(userId, c.req.param("id"), body);
     return c.json(result, 200);
   });

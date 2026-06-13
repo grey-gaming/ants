@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "hono/types";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../utils/validator";
 import {
   registerUserRequestSchema,
   loginRequestSchema,
@@ -17,8 +17,13 @@ export function createAuthRoutes(svc: Services) {
 
   app.post("/register", zValidator("json", registerUserRequestSchema), async (c) => {
     const { email, name, inviteCode } = c.req.valid("json");
-    const result = await svc.user.create(email, name, inviteCode);
-    return c.json(result, 201);
+    try {
+      const result = await svc.user.create(email, name, inviteCode);
+      return c.json(result, 201);
+    } catch (err: unknown) {
+      console.error("Register error:", err);
+      throw err;
+    }
   });
 
   app.post("/login", zValidator("json", loginRequestSchema), async (c) => {

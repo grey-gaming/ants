@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "hono/types";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../utils/validator";
 import { createRunRequestSchema, updateRunStatusRequestSchema } from "../schemas/request";
 import type { Services } from "../types";
 
