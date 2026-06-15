@@ -1,4 +1,4 @@
-import { createRouter, createRootRouteWithContext, createRoute, Outlet } from '@tanstack/react-router'
+import { createRouter, createRootRouteWithContext, createRoute, Outlet, redirect } from '@tanstack/react-router'
 import type { QueryClient } from '@tanstack/react-query'
 import { queryClient } from '@/lib/query-client'
 import { AppShell } from '@/components/layout/app-shell'
@@ -25,6 +25,16 @@ const layoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'layout',
   component: Layout,
+  beforeLoad: async () => {
+    try {
+      const res = await fetch('/v1/auth/me', { credentials: 'same-origin' })
+      if (!res.ok) {
+        throw new Error('unauthenticated')
+      }
+    } catch {
+      throw redirect({ to: '/login' })
+    }
+  },
 })
 
 // Dashboard route
