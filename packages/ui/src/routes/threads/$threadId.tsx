@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from '@tanstack/react-router'
+import { useParams, useNavigate } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,14 +10,22 @@ import { Separator } from '@/components/ui/separator'
 import { ChatBubble } from '@/components/ants/chat-bubble'
 import { RunTree } from '@/components/ants/run-tree'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   ArrowLeft,
   MoreVertical,
   Send,
   Clock,
   Zap,
   Loader2,
+  Pin,
+  Trash2,
 } from 'lucide-react'
-import { useThread, useMessages, useThreadActivity, useSendMessage, useCancelRun, useAgents } from '@/hooks/api'
+import { useThread, useMessages, useThreadActivity, useSendMessage, useCancelRun, useAgents, useUpdateThread, useDeleteThread } from '@/hooks/api'
 
 type RunNode = {
   id: string
@@ -48,6 +56,7 @@ function buildRunTree(
 export function ThreadDetailPage() {
   const { threadId } = useParams({ from: '/layout/threads/$threadId' })
   const [message, setMessage] = useState('')
+  const navigate = useNavigate()
 
   const { data: thread, isLoading: threadLoading } = useThread(threadId)
   const { data: messages, isLoading: messagesLoading } = useMessages(threadId)
@@ -55,6 +64,8 @@ export function ThreadDetailPage() {
   const { data: agents } = useAgents()
   const sendMessage = useSendMessage()
   const cancelRun = useCancelRun()
+  const updateThread = useUpdateThread()
+  const deleteThread = useDeleteThread()
 
   const loading = threadLoading || messagesLoading
 
@@ -95,7 +106,12 @@ export function ThreadDetailPage() {
       <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface-1">
         <div className="flex items-center justify-between border-b border-border p-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="md:hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => navigate({ to: '/threads' })}
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
@@ -105,9 +121,39 @@ export function ThreadDetailPage() {
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon">
-            <MoreVertical className="h-5 w-5" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() =>
+                  updateThread.mutate({
+                    id: threadId,
+                    data: { isPinned: !thread?.isPinned },
+                  })
+                }
+              >
+                <Pin className="h-4 w-4 mr-2" />
+                {thread?.isPinned ? 'Unpin' : 'Pin'}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (confirm('Delete this thread?')) {
+                    deleteThread.mutate(threadId, {
+                      onSuccess: () => navigate({ to: '/threads' }),
+                    })
+                  }
+                }}
+                className="text-error focus:text-error"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <ScrollArea className="flex-1 p-4">
