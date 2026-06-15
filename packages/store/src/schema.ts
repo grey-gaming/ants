@@ -67,10 +67,24 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: varchar('email', { length: 255 }).notNull(),
   name: text('name').notNull(),
+  passwordHash: text('password_hash').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({
   usersEmailKey: unique().on(t.email),
+}));
+
+// ─── Table: sessions ────────────────────────────────────────────────────────
+
+export const sessions = pgTable('sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  token: text('token').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  sessionsUserIdIdx: index().on(t.userId),
+  sessionsTokenKey: unique().on(t.token),
 }));
 
 // ─── Table: api_keys ──────────────────────────────────────────────────────
@@ -259,10 +273,15 @@ export const usersRelations = relations(users, ({ many }) => ({
   apiKeys: many(apiKeys),
   threads: many(threads),
   settings: many(settings),
+  sessions: many(sessions),
 }));
 
 export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
   user: one(users, { fields: [apiKeys.userId], references: [users.id] }),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, { fields: [sessions.userId], references: [users.id] }),
 }));
 
 export const threadsRelations = relations(threads, ({ many }) => ({
@@ -318,6 +337,9 @@ export const jobQueueRelations = relations(jobQueue, ({ one }) => ({
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
 
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type NewApiKey = typeof apiKeys.$inferInsert;
