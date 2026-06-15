@@ -110,6 +110,12 @@ export interface Tool {
   createdAt: string
 }
 
+export interface ModelInfo {
+  id: string
+  name: string
+  provider: string
+}
+
 export async function getAuthToken(): Promise<string | null> {
   return localStorage.getItem('ants_api_key')
 }
@@ -376,6 +382,11 @@ export async function updateTool(id: string, data: Partial<Tool>): Promise<Tool>
     method: 'PATCH',
     body: JSON.stringify(data),
   })
+}
+
+// Models
+export async function getModels(): Promise<ModelInfo[]> {
+  return request<ModelInfo[]>('/models')
 }
 
 // Runs - additional endpoints
