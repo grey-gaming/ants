@@ -20,6 +20,7 @@ import { createInviteCodesRoutes } from "./routes/invite-codes";
 import { createThreadActivityRoutes } from "./routes/activity";
 import { createRunStepsRoutes } from "./routes/run-steps";
 import { createWorkerRoutes } from "./routes/worker";
+import { createModelRoutes } from "./routes/models";
 import { createWorkerManager } from "./services/worker-manager";
 import { MlxProvider, type LLMProvider } from "@ants/llm";
 import { toolRegistry } from "@ants/tools";
@@ -113,6 +114,7 @@ export function buildApp(dbOnly?: PostgresJsDatabase): Hono<AppEnv> & { worker: 
   app.use("/v1/*", authMiddleware);
 
   // Mount routes
+  app.route("/v1/models", createModelRoutes());
   app.route("/v1/threads", createThreadRoutes(services));
   app.route("/v1/messages", createMessageRoutes(services));
   app.route("/v1/runs", createRunRoutes(services));
