@@ -24,8 +24,8 @@ export function AgentDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-text-tertiary">Agent not found</p>
-        <Link to="/agents">
-          <Button variant="ghost" className="mt-4">Back to Agents</Button>
+        <Link to="/settings">
+          <Button variant="ghost" className="mt-4">Back to Settings</Button>
         </Link>
       </div>
     )
@@ -35,7 +35,7 @@ export function AgentDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/agents">
+          <Link to="/settings">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>

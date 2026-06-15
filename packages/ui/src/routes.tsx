@@ -6,7 +6,6 @@ import { LoginPage } from '@/components/layout/auth-guard'
 import { DashboardPage } from '@/routes/index'
 import { ThreadsPage } from '@/routes/threads/index'
 import { ThreadDetailPage } from '@/routes/threads/$threadId'
-import { AgentsPage } from '@/routes/agents/index'
 import { AgentDetailPage } from '@/routes/agents/$agentId'
 import { SettingsPage } from '@/routes/settings'
 
@@ -49,13 +48,6 @@ const threadDetailRoute = createRoute({
   component: ThreadDetailPage,
 })
 
-// Agents index route
-const agentsIndexRoute = createRoute({
-  getParentRoute: () => layoutRoute,
-  path: '/agents',
-  component: AgentsPage,
-})
-
 // Agent detail route
 const agentDetailRoute = createRoute({
   getParentRoute: () => layoutRoute,
@@ -83,7 +75,6 @@ const routeTree = rootRoute.addChildren([
     indexRoute,
     threadsIndexRoute,
     threadDetailRoute,
-    agentsIndexRoute,
     agentDetailRoute,
     settingsRoute,
   ]),
