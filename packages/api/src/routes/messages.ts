@@ -11,6 +11,32 @@ export function createMessageRoutes(svc: Services) {
     const userId = c.get("userId");
     const body = await c.req.json();
     const result = await svc.message.create(userId, body);
+
+    // If this is a user message, trigger a T1 orchestrator run
+    if (body.role === "user") {
+      try {
+        const agents = await svc.agent.list();
+        const t1Agent = agents.find((a) => a.tier === "t1" && a.status === "active");
+
+        if (t1Agent) {
+          const run = await svc.run.create({
+            threadId: body.threadId,
+            agentTypeId: t1Agent.id,
+            userId,
+          });
+
+          await svc.queue.enqueue({
+            runId: run.id,
+            userId,
+            threadId: body.threadId,
+          });
+        }
+      } catch (err) {
+        // Log but don't fail the message send
+        console.error("Failed to create run for user message:", err);
+      }
+    }
+
     return c.json(result, 201);
   });
 

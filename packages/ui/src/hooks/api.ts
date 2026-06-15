@@ -88,6 +88,8 @@ export function useMessages(threadId: string) {
   return useQuery<Message[], Error>({
     queryKey: queryKeys.messages(threadId),
     queryFn: () => getMessages(threadId),
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
   })
 }
 
@@ -130,6 +132,8 @@ export function useThreadActivity(threadId: string) {
   return useQuery<ThreadActivity, Error>({
     queryKey: queryKeys.activity(threadId),
     queryFn: () => getThreadActivity(threadId),
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
   })
 }
 
