@@ -3,7 +3,6 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
   MessageSquare,
-  Bot,
   Settings,
 } from 'lucide-react'
 
@@ -16,7 +15,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Home', to: '/', icon: LayoutDashboard },
   { label: 'Threads', to: '/threads', icon: MessageSquare },
-  { label: 'Agents', to: '/agents', icon: Bot },
   { label: 'Settings', to: '/settings', icon: Settings },
 ]
 
