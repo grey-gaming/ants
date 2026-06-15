@@ -106,15 +106,25 @@ describe("POST /v1/threads", () => {
   let app: ReturnType<typeof createApp>;
   let db: ReturnType<typeof createTestDb>;
 
+  let setCookie: string;
+
   beforeEach(async () => {
     db = await createTestDb();
     app = createApp({ db });
+
+    // Login to get session cookie for authenticated requests
+    const loginRes = await app.request("/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "test@ants.dev", password: "password123" }),
+    });
+    setCookie = loginRes.headers.get("Set-Cookie")!;
   });
 
   test("creates a thread and returns 201", async () => {
     const response = await app.request("/v1/threads", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Key": "test-key" },
+      headers: { "Content-Type": "application/json", Cookie: setCookie },
       body: JSON.stringify({ title: "Test Thread" }),
     });
 
@@ -124,7 +134,7 @@ describe("POST /v1/threads", () => {
     expect(body.title).toBe("Test Thread");
   });
 
-  test("returns 401 without API key", async () => {
+  test("returns 401 without session cookie", async () => {
     const response = await app.request("/v1/threads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -137,7 +147,7 @@ describe("POST /v1/threads", () => {
   test("returns 422 for invalid body", async () => {
     const response = await app.request("/v1/threads", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Key": "test-key" },
+      headers: { "Content-Type": "application/json", Cookie: setCookie },
       body: JSON.stringify({}),
     });
 
@@ -213,9 +223,18 @@ describe("Research Agent with web_search tool", () => {
     });
 
     const app = createApp({ model: mockModel });
+
+    // Login to get session cookie
+    const loginRes = await app.request("/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "test@ants.dev", password: "password123" }),
+    });
+    const setCookie = loginRes.headers.get("Set-Cookie")!;
+
     const response = await app.request("/v1/threads/thread-123/runs", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Key": "test-key" },
+      headers: { "Content-Type": "application/json", Cookie: setCookie },
       body: JSON.stringify({ agent_type_id: "research-agent", messages: [...] }),
     });
 
@@ -298,20 +317,22 @@ afterAll(async () => {
 ```typescript
 // tests/helpers/seed.ts
 import { db } from "./test-db";
+import bcrypt from "bcrypt";
 
 export async function seedTestData(db) {
   const user = await db.insert(users).values({
     email: "test@ants.dev",
     name: "Test User",
+    passwordHash: await bcrypt.hash("password123", 12),
   }).returning();
 
-  const apiKey = await db.insert(apiKeys).values({
-    user_id: user[0].id,
-    key_hash: hashApiKey("test-key"),
-    name: "Test Key",
+  const session = await db.insert(sessions).values({
+    userId: user[0].id,
+    token: "test-session-token",
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   }).returning();
 
-  return { user: user[0], apiKey: apiKey[0] };
+  return { user: user[0], session: session[0] };
 }
 ```
 
@@ -361,9 +382,17 @@ Integration tests validate real streaming behavior with an actual Ollama instanc
 // tests/integration/streaming.test.ts
 describe("Streaming responses with Ollama", () => {
   test("streams tokens progressively via SSE", async () => {
+    // Login to get session cookie
+    const loginRes = await app.request("/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "test@ants.dev", password: "password123" }),
+    });
+    const setCookie = loginRes.headers.get("Set-Cookie")!;
+
     const response = await app.request("/v1/threads/thread-123/runs", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Key": "test-key" },
+      headers: { "Content-Type": "application/json", Cookie: setCookie },
       body: JSON.stringify({
         agent_type_id: "research-agent",
         messages: [{ role: "user", content: "Hello" }],

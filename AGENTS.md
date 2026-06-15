@@ -21,7 +21,7 @@ ANTS (Autonomous Networked Task System) is a **multi-agent orchestrator** with a
 - **Database**: PostgreSQL + pgvector (single DB, no Redis)
 - **LLM Provider**: Ollama (local, abstracted behind provider interface)
 - **API Spec**: OpenAPI 3.1 (spec-first development)
-- **Auth**: API keys + row-level security at Drizzle query layer
+- **Auth**: HTTP-only cookie sessions + email/password login (bcrypt)
 - **UI**: React 19 + Vite + Tailwind + shadcn/ui + Radix primitives + Zustand + React Router
 - **UI Tooling**: Biome (lint), TypeScript, Sonner (toasts), Lucide icons, Cmdk (command palette)
 
@@ -38,6 +38,7 @@ bun run lint              # Lint code
 bun run typecheck         # Type-check code
 bun run db:migrate        # Run database migrations
 bun run db:generate       # Generate Drizzle migrations from schema
+bun run setup:db          # Set up database and create first admin user
 cd packages/ui && bun run dev   # Start UI dev server (Vite)
 cd packages/ui && bun run build # Build UI for production
 cd packages/ui && bun run lint  # Lint UI code (Biome)
@@ -55,7 +56,7 @@ packages/
   core/                    # @ants/core — depends on @ants/store
     src/
       services/            # Business logic (thread, message, run, agent, queue)
-      auth/                # API key generation/validation + RLS enforcement
+      auth/                # bcrypt password hashing utilities
       lib/                 # errors.ts, logger.ts, config.ts, utils.ts
   agents/                  # @ants/agents — depends on @ants/core only
     src/
@@ -166,7 +167,7 @@ tests/
 - **No supertest** — use Hono's `app.request()` for HTTP endpoint testing.
 - **Don't test LLM quality** — test that ANTS handles LLM outputs correctly, not that outputs are "good".
 - **No Redis or Qdrant** — PostgreSQL only. See ADR-013.
-- **No UI** — no web interface, no dashboard, no frontend. See ADR-009.
+- **No CLI-only restriction** — ANTS includes a React web UI in `packages/ui`. ADR-009 was superseded when the UI was added.
 - **No cloud APIs** — no OpenAI, Anthropic, Google. Local inference only via Ollama. See ADR-008.
 - **No static-only classes** — use plain module exports instead of classes with only static methods.
 - **No barrel files** — no `index.ts` files that re-export everything from a directory.
@@ -267,12 +268,27 @@ describe("POST /v1/threads", () => {
     app = createApp({ db });
   });
 
+  // Auth via cookies — login first at POST /v1/auth/login with { email, password }
+  // The session cookie (ants_session) is HTTP-only and sent automatically.
+  let sessionCookie: string;
+  beforeAll(async () => {
+    const loginRes = await app.request("/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "test@test.com", password: "test-password" }),
+    });
+    expect(loginRes.status).toBe(200);
+    const setCookie = loginRes.headers.get("set-cookie");
+    expect(setCookie).toBeDefined();
+    sessionCookie = setCookie!;
+  });
+
   test("creates a thread and returns 201", async () => {
     const res = await app.request("/v1/threads", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer test-api-key",
+        Cookie: sessionCookie,
       },
       body: JSON.stringify({ title: "New Thread" }),
     });
@@ -282,7 +298,7 @@ describe("POST /v1/threads", () => {
     expect(body.id).toBeDefined();
   });
 
-  test("returns 401 without API key", async () => {
+  test("returns 401 without valid session", async () => {
     const res = await app.request("/v1/threads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -296,7 +312,7 @@ describe("POST /v1/threads", () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer test-api-key",
+        Cookie: sessionCookie,
       },
       body: JSON.stringify({ title: "" }),
     });
@@ -351,7 +367,7 @@ describe("POST /v1/threads", () => {
 | 011 | 3-Tier Conversational Hub-and-Spoke | T1→T2→T3 delegation with multi-turn dialogue |
 | 012 | Sub-threads via Run Tree | parent_run_id for sub-threads, not separate Thread entities |
 | 013 | Single Database (PostgreSQL Only) | No Redis, no Qdrant — PostgreSQL handles everything |
-| 014 | Multi-user Auth with API Keys | Bearer token auth + row-level security at query layer |
+| 014 | Session-Based Cookie Auth | HTTP-only cookie sessions, email/password login, bcrypt passwords |
 | 015 | Project Name - ANTS | Autonomous Networked Task System — the orchestration engine |
 | 016 | Testing Strategy | Pragmatic test-first, provider mocking, testcontainers, 80-90% coverage |
 | 017 | Repository Structure | Bun workspace monorepo, strict dependency DAG, config-driven registries |

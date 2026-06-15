@@ -16,8 +16,7 @@ Create a setup/init script (`scripts/setup-db.ts` or `bun run setup`) that handl
    - Execute `drizzle-kit migrate` to apply all schema migrations
 
 4. **Seed default data**
-   - Create default admin user (e.g., `admin@localhost`)
-   - Generate and store admin API key
+   - Create admin user with email and password (bcrypt hashed) (e.g., `admin@localhost`)
    - Run discovery to register built-in tools (web-search, etc.)
    - Register default agent types (orchestrator, researcher)
    - Link tools to agents (researcher → web-search)
@@ -25,7 +24,7 @@ Create a setup/init script (`scripts/setup-db.ts` or `bun run setup`) that handl
 5. **Print summary**
    - Show DB connection info
    - List registered tools and agents
-   - Display the admin API key (first-time only)
+   - Display the admin login credentials (first-time only)
 
 ## Usage
 

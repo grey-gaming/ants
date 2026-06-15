@@ -1,7 +1,8 @@
 # ADR-014: Multi-user Auth with API Keys
 
-- **Status**: Accepted
+- **Status**: Superseded
 - **Date**: 2026-06-09
+- **Superseded by**: ADR-024 (Session-Based Cookie Authentication) — 2026-06-15
 
 ## Context
 

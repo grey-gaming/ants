@@ -57,7 +57,7 @@ Every technology choice is intentional and justified against alternatives.
 | **Vector Extension** | pgvector | Available in PostgreSQL from v1 (installed), but not actively used until semantic memory is implemented. |
 | **LLM Provider** | Ollama (local) | Qwen3-35B-A3B as primary coding/agent model. Abstracted behind a provider interface for future model swapping. |
 | **API Spec** | OpenAPI 3.1 | Spec-first development. The spec drives type generation, validation, and documentation. |
-| **Auth** | API Keys + Row-Level Security | Multi-user from v1. Each user has API keys. Row-level security ensures data isolation. |
+| **Auth** | HTTP-only cookie sessions + bcrypt passwords | Session-based auth via email/password. Row-level security ensures data isolation. |
 
 ### Explicitly NOT in V1
 
@@ -188,7 +188,7 @@ The data model is inspired by the OpenAI Assistants API but adapted for our conv
 
 ```mermaid
 erDiagram
-    User ||--o{ ApiKey : "has"
+    User ||--o{ Session : "has"
     User ||--o{ Thread : "owns"
     Thread ||--o{ Message : "contains"
     Thread ||--o{ Run : "has"
@@ -209,14 +209,12 @@ erDiagram
         timestamp updated_at
     }
 
-    ApiKey {
+    Session {
         uuid id PK
         uuid user_id FK
-        string key_hash
-        string name
-        timestamp last_used_at
-        timestamp created_at
+        string token
         timestamp expires_at
+        timestamp created_at
     }
 
     Thread {
@@ -409,9 +407,10 @@ PATCH  /v1/settings                          Update settings (partial)
 GET    /v1/settings/{key}                    Get a specific setting
 
 # Auth
-POST   /v1/api-keys                          Create API key
-GET    /v1/api-keys                          List API keys
-DELETE /v1/api-keys/{id}                     Revoke API key
+POST   /v1/auth/login                         Login with email/password
+POST   /v1/auth/register                      Register new user (invite-only)
+POST   /v1/auth/logout                        End current session
+GET    /v1/auth/me                            Get current user
 
 # Health
 GET    /v1/health                            Health check
@@ -520,7 +519,7 @@ V1 establishes the foundational architecture. Everything built here must support
 | **Orchestrator Agent (T1)** | Routes user requests, coordinates specialist agents, maintains conversation context |
 | **Research Agent (T3)** | Single task agent that performs research using web search |
 | **Web Search Tool** | Single tool implementation — calls web search, returns results |
-| **Multi-User Auth** | API key creation, validation, per-user data isolation |
+| **Multi-User Auth** | Email/password login, cookie sessions, bcrypt passwords, per-user data isolation |
 | **Thread/Message/Run/Step** | Core data model fully implemented |
 | **Agent Registry** | Register, list, update agent types |
 | **Tool Registry** | Register, list tools |
@@ -602,7 +601,7 @@ ants/
 │   │   │   │   ├── agent-service.ts # Agent resolution and selection
 │   │   │   │   └── queue-service.ts  # Queue management
 │   │   │   ├── auth/
-│   │   │   │   ├── api-key.ts        # API key generation and validation
+│   │   │   │   ├── api-key.ts        # bcrypt password hashing (reused for password hash/compare)
 │   │   │   │   └── rls.ts            # Row-level security enforcement
 │   │   │   └── lib/
 │   │   │       ├── errors.ts         # Error types and factories
@@ -620,9 +619,9 @@ ants/
 │   │   │   │   ├── agents.ts         # Agent registry endpoints
 │   │   │   │   ├── tools.ts       # Tool registry endpoints
 │   │   │   │   ├── health.ts        # Health and queue status endpoints
-│   │   │   │   └── auth.ts       # API key management endpoints
+│   │   │   │   └── auth.ts       # login/logout/register endpoints
 │   │   │   ├── middleware/
-│   │   │   │   ├── auth.ts        # API key validation
+│   │   │   │   ├── auth.ts        # cookie session validation
 │   │   │   │   ├── rate-limit.ts  # Rate limiting
 │   │   │   │   ├── error-handler.ts # Global error handling
 │   │   │   │   └── request-logging.ts # Request/response logging
@@ -958,7 +957,7 @@ ANTS has multiple error-producing surfaces, each requiring distinct handling str
 | Status | Code | Description |
 |--------|------|-------------|
 | 400 | `BAD_REQUEST` | Malformed request body or parameters |
-| 401 | `UNAUTHORIZED` | Missing or invalid API key |
+| 401 | `UNAUTHORIZED` | Missing or invalid session cookie |
 | 404 | `NOT_FOUND` | Resource not found |
 | 409 | `CONFLICT` | Conflict (e.g., cancelling a completed run) |
 | 422 | `VALIDATION_ERROR` | Zod schema violation |
@@ -1037,22 +1036,23 @@ Registration is invite-only. Two paths exist:
 
 This prevents open sign-ups while allowing controlled onboarding.
 
-### Dual Auth Mechanism: JWT + API Keys
+### Cookie-Based Session Authentication
 
-ANTS supports two authentication mechanisms, both using the `Authorization` header as bearer tokens:
+Authentication uses HTTP-only cookies. When a user logs in via `POST /v1/auth/login`, the server creates a session row in the `sessions` table and sets an `ants_session` cookie (HttpOnly, SameSite=Lax, 7-day expiry). Subsequent requests include this cookie automatically; the auth middleware validates it against the database. Sessions are terminated via `POST /v1/auth/logout` which deletes the session row and clears the cookie.
 
-| Auth Mechanism | Use Case | Properties |
-|---|---|---|
-| JWT | Interactive sessions | 24h expiry, role claims, re-auth to refresh |
-| API Key (`sk_` prefix) | Programmatic access | Persistent until revoked, looked up in DB |
-
-JWT tokens carry role claims (`user` or `admin`) and are issued upon login. They expire after 24 hours, requiring re-authentication to refresh. API keys are persistent bearer tokens with the `sk_` prefix, stored hashed in the database, and remain valid until explicitly revoked. Both mechanisms use the same `Authorization: Bearer <token>` header format.
+| Property | Value |
+|---|---|
+| Cookie name | `ants_session` |
+| Flags | `HttpOnly; SameSite=Lax; Secure` (in prod) |
+| Expiry | 7 days |
+| Password hashing | bcrypt, cost factor 12 |
+| Session storage | `sessions` table in PostgreSQL |
 
 ### Two Roles: User and Admin
 
 | Role | Permissions |
 |---|---|
-| user | Own data only: threads, messages, runs, API keys, settings |
+| user | Own data only: threads, messages, runs, settings |
 | admin | All user permissions + manage users, invite codes, all runs, agent/tool registries, global settings |
 
 No fine-grained RBAC in v1. The two-role model keeps authorisation simple while providing sufficient access control for the system's needs.
@@ -1068,11 +1068,11 @@ Per-user settings allow customisation without polluting the global configuration
 
 ### Row-Level Security
 
-Every database query is scoped by `user_id` at the Drizzle query layer. Users see only their own data — threads, messages, runs, API keys, and settings. Admins see all data across all users. This enforcement happens in the model/query layer, not just at the API level, ensuring consistent isolation regardless of access path.
+Every database query is scoped by `user_id` at the Drizzle query layer. Users see only their own data — threads, messages, runs, and settings. Admins see all data across all users. This enforcement happens in the model/query layer, not just at the API level, ensuring consistent isolation regardless of access path.
 
 ### Bootstrap CLI
 
-`ants bootstrap` is the entry point for fresh installations. It creates the first admin user (email + password) and outputs an initial API key. Without this command, there are no users in the system and therefore no way to authenticate. This ensures the system starts from a known, controlled state.
+`bun run setup:db` is the entry point for fresh installations. It runs all pending migrations and then prompts for the first admin user's email and password (hashed with bcrypt). Without this step, there are no users in the system and therefore no way to authenticate. This ensures the system starts from a known, controlled state.
 
 ---
 
@@ -1111,9 +1111,9 @@ Every log entry contains the same set of fields. Null fields are included as nul
 | LLM calls | model, prompt_tokens, completion_tokens, duration_ms | info |
 | Tool executions | tool_name, duration_ms, status | info |
 | Context compaction | stage, tokens_before, tokens_after | info |
-| Auth: login success | user_id, method (jwt/api_key) | info |
-| Auth: login failure | email, method, reason | warn |
-| API key validation | key_prefix, user_id | debug |
+| Auth: login success | user_id, session_id | info |
+| Auth: login failure | email, reason | warn |
+| Session validation | session_id, user_id | debug |
 | Invite code usage | invite_code_id, new_user_id | info |
 | Errors | all standard fields + stack trace | error |
 | Run state changes | run_id, from_status, to_status | info |
@@ -1262,7 +1262,7 @@ sequenceDiagram
 | Tool execution model | Phase-based lifecycle, sync, same-process | Standardised output, error-as-result, per-tool timeout, permission enforcement |
 | Context compaction | Same budget/algorithm all tiers, two-stage | 32K/8K budget, 80% trigger, tool result removal then LLM summarisation |
 | Error handling model | Three-tier (API/LLM/tool) | LLM errors retry with backoff, tool errors feed to LLM, partial failures independent |
-| User model & auth | Email/password, invite-only, JWT + API keys, user/admin roles, per-user settings, row-level security, bootstrap CLI | Full identity model for interactive sessions and admin controls; API keys for programmatic access |
+| User model & auth | Email/password, invite-only, cookie sessions, user/admin roles, per-user settings, row-level security | Full identity model with session-based authentication; email/password login with bcrypt password hashing |
 | Logging | Structured JSON to stdout, consistent schema, info default, LOG_LEVEL env var, enhanced health endpoints | 12-factor pattern, no external deps for v1, machine-parseable |
 | Graceful shutdown | SIGTERM/SIGINT → pause runs → 503 new requests → complete in-progress within 30s → resume on restart | Preserves work, bounded shutdown, single-database state |
 
@@ -1288,9 +1288,8 @@ sequenceDiagram
 | **ToolExecutionError** | Standardised error shape for tool execution failures |
 | **Ollama** | Local LLM inference engine used as the default provider |
 | **pgvector** | PostgreSQL extension for vector similarity search |
-| **JWT** | JSON Web Token — used for interactive session authentication with 24h expiry |
-| **API Key** | Bearer token with `sk_` prefix for programmatic access, persistent until revoked |
 | **Invite Code** | Single-use code generated by admins for new user registration |
+| **Session** | HTTP-only cookie-based authentication session stored in PostgreSQL with 7-day expiry |
 | **Graceful Shutdown** | Process of completing in-progress work and persisting state before termination |
 | **Paused Run** | A run persisted with `paused` status during shutdown, resumed on restart |
 

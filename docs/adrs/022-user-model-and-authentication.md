@@ -1,7 +1,8 @@
 # ADR-022: User Model and Authentication
 
-- **Status**: Accepted
+- **Status**: Superseded
 - **Date**: 2026-06-10
+- **Superseded by**: ADR-024 (Session-Based Cookie Authentication) — 2026-06-15
 
 ## Context
 

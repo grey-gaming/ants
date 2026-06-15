@@ -1,75 +1,12 @@
-/api-keys:
-  post:
-    tags: [Auth]
-    operationId: createApiKey
-    summary: Create an API key
-    description: |
-      Requires authentication. The first API key for a new installation must be
-      bootstrapped via the ANTS_BOOTSTRAP_KEY environment variable — this endpoint
-      cannot be used until at least one authenticated key exists.
-      Users can only create API keys for themselves. The user_id is derived from
-      the authenticated user's token.
-    parameters:
-      - $ref: '../parameters.yaml#/IdempotencyKey'
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '../schemas/auth.yaml#/ApiKeyCreate'
-    responses:
-      '201':
-        description: API key created (full key returned only once)
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/auth.yaml#/ApiKeyWithSecret'
-      '400':
-        $ref: '../responses.yaml#/BadRequest'
-      '401':
-        $ref: '../responses.yaml#/Unauthorized'
-  get:
-    tags: [Auth]
-    operationId: listApiKeys
-    summary: List API keys
-    responses:
-      '200':
-        description: List of API keys (keys are masked)
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/auth.yaml#/ApiKeyListResponse'
-      '401':
-        $ref: '../responses.yaml#/Unauthorized'
-
-/api-keys/{id}:
-  delete:
-    tags: [Auth]
-    operationId: revokeApiKey
-    summary: Revoke an API key
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    responses:
-      '204':
-        description: API key revoked
-      '401':
-        $ref: '../responses.yaml#/Unauthorized'
-      '404':
-        $ref: '../responses.yaml#/NotFound'
-
 /auth/register:
   post:
     tags: [Auth]
     operationId: registerUser
     summary: Register a new user
     description: |
-      Invite-only registration. Requires a valid invite code.
-      Returns a JWT token and user object on success.
+      Create a new user account. Invite code is optional — registration
+      may be open or restricted depending on server configuration.
+      On success an HTTP-only session cookie (ants_session) is set.
     security: []
     parameters:
       - $ref: '../parameters.yaml#/IdempotencyKey'
@@ -81,22 +18,20 @@
             $ref: '../schemas/auth.yaml#/RegisterRequest'
     responses:
       '201':
-        description: User registered successfully
+        description: User registered successfully (session cookie set)
         content:
           application/json:
             schema:
               $ref: '../schemas/auth.yaml#/AuthResponse'
       '400':
         $ref: '../responses.yaml#/BadRequest'
-      '401':
-        $ref: '../responses.yaml#/Unauthorized'
 
 /auth/login:
   post:
     tags: [Auth]
     operationId: loginUser
-    summary: Authenticate and get a JWT token
-    description: Authenticate with email and password to receive a JWT token.
+    summary: Authenticate and set session cookie
+    description: Authenticate with email and password. On success an HTTP-only session cookie (ants_session) is set.
     security: []
     parameters:
       - $ref: '../parameters.yaml#/IdempotencyKey'
@@ -108,7 +43,33 @@
             $ref: '../schemas/auth.yaml#/LoginRequest'
     responses:
       '200':
-        description: Authentication successful
+        description: Authentication successful (session cookie set)
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/auth.yaml#/AuthResponse'
+      '401':
+        $ref: '../responses.yaml#/Unauthorized'
+
+/auth/logout:
+  post:
+    tags: [Auth]
+    operationId: logoutUser
+    summary: End the current session
+    description: Clears the ants_session cookie and invalidates the session.
+    responses:
+      '204':
+        description: Session ended
+
+/auth/me:
+  get:
+    tags: [Auth]
+    operationId: getCurrentUser
+    summary: Get the authenticated user
+    description: Returns the user object for the current session (ants_session cookie).
+    responses:
+      '200':
+        description: Current user
         content:
           application/json:
             schema:

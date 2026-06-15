@@ -28,7 +28,7 @@ servers:
     description: Local development
 
 security:
-  - BearerAuth: []
+  []
 
 tags:
   - name: Threads
@@ -48,7 +48,7 @@ tags:
   - name: Settings
     description: Key-value configuration
   - name: Auth
-    description: Authentication and API key management
+    description: Authentication (login/logout/register)
   - name: Health
     description: System health and queue status
   - name: Users
@@ -60,11 +60,11 @@ paths: {}
 
 components:
   securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: 'sk-...'
-      description: API key in Authorization header (Bearer sk-...)
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: ants_session
+      description: HTTP-only session cookie set by POST /v1/auth/login
 
   parameters: {}
   responses: {}

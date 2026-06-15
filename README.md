@@ -50,7 +50,7 @@ For the complete architecture, data model, API design, concurrency model, and pr
 | **Vector Extension** | pgvector | Installed from v1 but not actively queried until semantic memory is implemented |
 | **LLM Provider** | Ollama (local) | Qwen3-35B-A3B as primary model; abstracted behind provider interface for future model swapping |
 | **API Spec** | OpenAPI 3.1 | Spec-first development; drives type generation, validation, and documentation |
-| **Auth** | API Keys + Row-Level Security | Multi-user from v1; each user has API keys; row-level security ensures data isolation |
+| **Auth** | HTTP-only cookie sessions + bcrypt passwords | Session-based auth via email/password. Row-level security ensures data isolation. |
 
 ### Explicitly NOT in V1
 
@@ -86,6 +86,9 @@ cp .env.example .env
 
 # Run database migrations
 bun run db:migrate
+
+# Create first admin user
+bun run setup:db
 
 # Start the development server
 bun run dev
@@ -163,7 +166,7 @@ For the full project structure with package descriptions, dependency rules, and 
 | 011 | 3-Tier Conversational Hub-and-Spoke | T1 orchestrator, T2 specialists, T3 task agents with multi-turn dialogue |
 | 012 | Sub-threads via Run Tree | Sub-threads represented by Run tree (parent_run_id), not separate Thread entities |
 | 013 | Single Database (PostgreSQL Only) | No Redis, no Qdrant — PostgreSQL handles all storage including queueing and future vectors |
-| 014 | Multi-user Auth with API Keys | API key auth with row-level security at the Drizzle query layer for data isolation |
+| 014 | Session-Based Cookie Auth | HTTP-only cookie sessions with email/password login; bcrypt password hashing; row-level security |
 | 015 | Project Name - ANTS | ANTS = Autonomous Networked Task System; the orchestration engine (distinct from ANT assistant) |
 | 016 | Testing Strategy | Pragmatic test-first, Bun test runner, provider-level mocking, testcontainers, 80-90% coverage |
 | 017 | Repository Structure | Bun workspace monorepo with @ants/* packages, strict dependency DAG, config-driven registries |
