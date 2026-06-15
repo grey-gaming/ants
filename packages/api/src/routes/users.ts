@@ -1,29 +1,13 @@
 import { Hono } from "hono";
 import type { Env } from "hono/types";
 import type { Services } from "../types";
-import { createAdminMiddleware, createAuthMiddleware } from "../middleware/auth";
 
-type AppEnv = Env & { Variables: { userId: string; apiKeyName: string | undefined } };
+type AppEnv = Env & { Variables: { userId: string } };
 
 export function createUserRoutes(svc: Services, db: any) {
   const app = new Hono<AppEnv>();
-  const adminMiddleware = createAdminMiddleware();
-  const authMiddleware = createAuthMiddleware(db);
 
-  app.get("/me", authMiddleware, async (c) => {
-    const userId = c.get("userId");
-    const result = await svc.user.getCurrentUser(userId);
-    return c.json(result, 200);
-  });
-
-  app.patch("/me", authMiddleware, async (c) => {
-    const userId = c.get("userId");
-    const body = await c.req.json();
-    const result = await svc.user.update(userId, { name: body.name });
-    return c.json(result, 200);
-  });
-
-  app.get("/", authMiddleware, async (c) => {
+  app.get("/", async (c) => {
     if (c.req.header("X-Admin") !== "true") {
       return c.json({ error: "Admin access required" }, 401);
     }
@@ -31,7 +15,7 @@ export function createUserRoutes(svc: Services, db: any) {
     return c.json(users, 200);
   });
 
-  app.get("/:id", authMiddleware, async (c) => {
+  app.get("/:id", async (c) => {
     const id = c.req.param("id");
     if (!id) return c.json({ error: "Id required" }, 400);
     const result = await svc.user.getById(id);
@@ -39,7 +23,7 @@ export function createUserRoutes(svc: Services, db: any) {
     return c.json(result, 200);
   });
 
-  app.patch("/:id", adminMiddleware, async (c) => {
+  app.patch("/:id", async (c) => {
     const id = c.req.param("id");
     if (!id) return c.json({ error: "Id required" }, 400);
     const body = await c.req.json();
@@ -47,7 +31,7 @@ export function createUserRoutes(svc: Services, db: any) {
     return c.json(result, 200);
   });
 
-  app.delete("/:id", adminMiddleware, async (c) => {
+  app.delete("/:id", async (c) => {
     const id = c.req.param("id");
     if (!id) return c.json({ error: "Id required" }, 400);
     const userId = c.get("userId");

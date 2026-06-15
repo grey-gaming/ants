@@ -6,7 +6,7 @@ import {
   createToolService,
   createQueueService,
   createUserService,
-  createApiKeyService,
+  createSessionService,
   createSettingsService,
   createInviteCodeService,
 } from "@ants/core";
@@ -19,7 +19,7 @@ export type AgentServiceT = ReturnType<typeof createAgentService>;
 export type ToolServiceT = ReturnType<typeof createToolService>;
 export type QueueServiceT = ReturnType<typeof createQueueService>;
 export type UserServiceT = ReturnType<typeof createUserService>;
-export type ApiKeyServiceT = ReturnType<typeof createApiKeyService>;
+export type SessionServiceT = ReturnType<typeof createSessionService>;
 export type SettingsServiceT = ReturnType<typeof createSettingsService>;
 export type InviteCodeServiceT = ReturnType<typeof createInviteCodeService>;
 
@@ -31,7 +31,7 @@ export interface ConfiguredServices {
   tool: ToolServiceT;
   queue: QueueServiceT;
   user: UserServiceT;
-  apiKey: ApiKeyServiceT;
+  session: SessionServiceT;
   settings: SettingsServiceT;
   inviteCode: InviteCodeServiceT;
 }
@@ -45,7 +45,7 @@ export function configureServices(db: PostgresJsDatabase): ConfiguredServices {
     tool: createToolService(db),
     queue: createQueueService(db),
     user: createUserService(db),
-    apiKey: createApiKeyService(db),
+    session: createSessionService(db),
     settings: createSettingsService(db),
     inviteCode: createInviteCodeService(db),
   };
