@@ -23,7 +23,6 @@ import {
   updateUser,
   validateApiKey,
   streamRunEvents,
-  logout,
   clearAuthToken,
   registerUser,
   createApiKey,
@@ -377,7 +376,7 @@ export function useCreateApiKey() {
   const queryClient = useQueryClient()
   return useMutation<ApiKey, Error, { name?: string; expiresAt?: string }>({
     mutationFn: (data) => createApiKey(data),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys })
     },
   })
@@ -411,7 +410,7 @@ export function useSetting(key: string) {
     retry: false,
   })
   
-  return { data, ...rest, data: data ?? undefined as Setting | undefined }
+  return { ...rest, data: data ?? undefined as Setting | undefined }
 }
 
 export function useUpdateSetting() {
@@ -456,7 +455,7 @@ export function useTool(id: string) {
     retry: false,
   })
   
-  return { data, ...rest, data: data ?? undefined as Tool | undefined }
+  return { ...rest, data: data ?? undefined as Tool | undefined }
 }
 
 export function useRegisterTool() {
