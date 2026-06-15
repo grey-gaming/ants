@@ -1,7 +1,7 @@
 # ANTS Architecture Document
 
 > **Status**: Canonical Reference — All development decisions must align with this document.
-> **Last Updated**: 2026-06-10
+> **Last Updated**: 2026-06-15
 > **Version**: 1.1-draft
 
 ---
@@ -13,6 +13,8 @@
 3. [Three-Tier Conversational Hub-and-Spoke Agent Model](#3-three-tier-conversational-hub-and-spoke-agent-model)
 4. [Data Model](#4-data-model)
 5. [API Design Principles](#5-api-design-principles)
+   - [Message-to-Run Lifecycle](#message-to-run-lifecycle)
+   - [Frontend Polling](#frontend-polling)
 6. [Concurrency, Queueing, and Resource Management](#6-concurrency-queueing-and-resource-management)
 7. [V1 Scope](#7-v1-scope)
 8. [Future Extensions](#8-future-extensions)
@@ -416,6 +418,24 @@ GET    /v1/auth/me                            Get current user
 GET    /v1/health                            Health check
 GET    /v1/health/queue                      Queue status + concurrency info
 ```
+
+### Message-to-Run Lifecycle
+
+When a user sends a message via `POST /v1/messages` with `role: "user"`, the system automatically triggers a T1 orchestrator run:
+
+1. The user message is persisted to the `messages` table.
+2. The messages route looks up an active T1 agent type from the registry.
+3. A new Run is created via `svc.run.create()` linked to the thread.
+4. The Run is enqueued via `svc.queue.enqueue()` with `normal` priority.
+5. The queue worker picks up the Run, dispatches it to the T1 orchestrator agent, which processes the conversation context and generates a response.
+
+This means clients only need to call `POST /v1/messages` — they do not need to manually create a run. The system handles the message-to-run flow automatically.
+
+If no active T1 agent is registered, the message is still persisted but no run is triggered (logged as an error).
+
+### Frontend Polling
+
+The frontend polls `GET /v1/threads/{id}/messages` and `GET /v1/threads/{id}/activity` at 3-second intervals to detect new LLM responses and run status changes. This ensures the UI reflects the agent's progress without requiring WebSocket infrastructure.
 
 ---
 
