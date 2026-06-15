@@ -344,13 +344,10 @@ export function streamRunEvents(
         const lines = buffer.split('\n')
         buffer = lines.pop() ?? ''
 
-        let eventType = 'message'
         let data = ''
 
         for (const line of lines) {
-          if (line.startsWith('event:')) {
-            eventType = line.slice(6).trim()
-          } else if (line.startsWith('data:')) {
+          if (line.startsWith('data:')) {
             data = line.slice(5).trim()
           } else if (line === '') {
             // Empty line = end of SSE event

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { isAuthenticated, login, clearAuthToken } from '@/lib/api'
+import { isAuthenticated, login } from '@/lib/api'
 import { Loader2 } from 'lucide-react'
 
 export function AuthGuard(Component: React.ComponentType<any>) {
