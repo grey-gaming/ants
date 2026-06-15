@@ -1,7 +1,8 @@
-import { type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Sidebar } from './sidebar'
 import { Topbar } from './topbar'
 import { MobileNav } from '@/components/ants/mobile-nav'
+import { MobileSidebar } from './mobile-sidebar'
 
 interface AppShellProps {
   children: ReactNode
@@ -9,6 +10,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, currentThreadName }: AppShellProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-surface-0">
@@ -20,7 +22,10 @@ export function AppShell({ children, currentThreadName }: AppShellProps) {
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar — mobile only */}
-        <Topbar currentThreadName={currentThreadName} />
+        <Topbar
+          currentThreadName={currentThreadName}
+          onMenuClick={() => setMobileMenuOpen(true)}
+        />
 
         {/* Page content */}
         <main className="flex-1 overflow-auto p-3 md:p-4 lg:p-6">
@@ -32,6 +37,12 @@ export function AppShell({ children, currentThreadName }: AppShellProps) {
           <MobileNav />
         </nav>
       </div>
+
+      {/* Mobile sidebar overlay */}
+      <MobileSidebar
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+      />
     </div>
   )
 }

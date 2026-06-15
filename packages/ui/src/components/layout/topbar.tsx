@@ -4,9 +4,10 @@ import { Menu } from 'lucide-react'
 
 interface TopbarProps {
   currentThreadName?: string
+  onMenuClick?: () => void
 }
 
-export function Topbar({ currentThreadName }: TopbarProps) {
+export function Topbar({ currentThreadName, onMenuClick }: TopbarProps) {
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-surface-1 px-4 md:hidden">
       <Link to="/" className="flex items-center gap-2">
@@ -19,7 +20,7 @@ export function Topbar({ currentThreadName }: TopbarProps) {
         {currentThreadName || 'ANTS'}
       </h1>
 
-      <Button variant="ghost" size="icon" className="h-10 w-10">
+      <Button variant="ghost" size="icon" className="h-10 w-10" onClick={onMenuClick}>
         <Menu className="h-5 w-5 text-text-secondary" />
       </Button>
     </header>
