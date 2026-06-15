@@ -2,7 +2,6 @@ import { describe, test, expect } from 'bun:test';
 import { getTableColumns } from 'drizzle-orm';
 import {
   users,
-  apiKeys,
   threads,
   messages,
   runs,
@@ -21,7 +20,6 @@ import {
   toolTypeEnum,
   jobQueuePriorityEnum,
   usersRelations,
-  apiKeysRelations,
   threadsRelations,
   messagesRelations,
   runsRelations,
@@ -33,7 +31,7 @@ import {
   jobQueueRelations,
 } from './schema';
 
-const allTables = [users, apiKeys, threads, messages, runs, runSteps, toolCalls, agentTypes, tools, inviteCodes, settings];
+const allTables = [users, threads, messages, runs, runSteps, toolCalls, agentTypes, tools, inviteCodes, settings];
 
 function getCols(table: any) {
   return getTableColumns(table) as Record<string, any>;
@@ -51,9 +49,8 @@ function hasCol(table: any, dbName: string) {
 // ─── Table Definitions ──────────────────────────────────────────────────────
 
 describe('Schema — Table Definitions', () => {
-  test('all 11 tables are defined', () => {
+  test('all 10 tables are defined', () => {
     expect(users).toBeDefined();
-    expect(apiKeys).toBeDefined();
     expect(threads).toBeDefined();
     expect(messages).toBeDefined();
     expect(runs).toBeDefined();
@@ -69,13 +66,6 @@ describe('Schema — Table Definitions', () => {
     const names = Object.values(getCols(users)).map(c => c.name);
     expect(names).toEqual(
       expect.arrayContaining(['id', 'email', 'name', 'created_at', 'updated_at'])
-    );
-  });
-
-  test('api_keys table has correct columns', () => {
-    const names = Object.values(getCols(apiKeys)).map(c => c.name);
-    expect(names).toEqual(
-      expect.arrayContaining(['id', 'user_id', 'key_hash', 'name', 'last_used_at', 'created_at', 'expires_at'])
     );
   });
 
@@ -202,9 +192,8 @@ describe('Schema — Enum Definitions', () => {
 // ─── FK Relations ──────────────────────────────────────────────────────────
 
 describe('Schema — FK Relations', () => {
-  test('11 relation exports are defined', () => {
+  test('10 relation exports are defined', () => {
     expect(usersRelations).toBeDefined();
-    expect(apiKeysRelations).toBeDefined();
     expect(threadsRelations).toBeDefined();
     expect(messagesRelations).toBeDefined();
     expect(runsRelations).toBeDefined();
@@ -260,7 +249,6 @@ describe('Schema — Timestamps', () => {
   test('tables have correct timestamp columns', () => {
     const timestampTables = [
       { table: users, hasUpdated: true },
-      { table: apiKeys, hasUpdated: false },
       { table: threads, hasUpdated: true },
       { table: messages, hasUpdated: false },
       { table: runs, hasUpdated: false },
@@ -293,12 +281,6 @@ describe('Schema — Unique Constraints', () => {
     expect(emailCol?.uniqueName).toContain('email');
   });
 
-  test('api_keys has unique constraint on key_hash', () => {
-    const hashCol = colByName(apiKeys, 'key_hash');
-    expect(hashCol?.uniqueName).toBeDefined();
-    expect(hashCol?.uniqueName).toContain('key_hash');
-  });
-
   test('agent_types has unique constraint on name', () => {
     const nameCol = colByName(agentTypes, 'name');
     expect(nameCol?.uniqueName).toBeDefined();
@@ -321,11 +303,6 @@ describe('Schema — Unique Constraints', () => {
 // ─── Nullable/Required Columns ─────────────────────────────────────────────
 
 describe('Schema — Nullable/Required Columns', () => {
-  test('apiKey last_used_at and expires_at are nullable', () => {
-    expect(colByName(apiKeys, 'last_used_at')?.notNull).toBe(false);
-    expect(colByName(apiKeys, 'expires_at')?.notNull).toBe(false);
-  });
-
   test('agentTypeId on messages is nullable', () => {
     expect(colByName(messages, 'agent_type_id')?.notNull).toBe(false);
   });

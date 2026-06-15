@@ -3,7 +3,6 @@ import { z } from "zod";
 const configSchema = z.object({
   databaseUrl: z.string().min(1),
   ollamaBaseUrl: z.string().min(1),
-  apiKeySecret: z.string().min(1),
   jwtSecret: z.string().min(1),
   logLevel: z.enum(["debug", "info", "warn", "error"]).default("info"),
   shutdownTimeoutSeconds: z.coerce.number().int().positive().default(30),
@@ -16,7 +15,6 @@ const configSchema = z.object({
 const getRawValues = () => ({
   databaseUrl: process.env.DATABASE_URL,
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL,
-  apiKeySecret: process.env.API_KEY_SECRET,
   jwtSecret: process.env.JWT_SECRET,
   logLevel: process.env.LOG_LEVEL,
   shutdownTimeoutSeconds: process.env.SHUTDOWN_TIMEOUT_SECONDS,
@@ -37,7 +35,6 @@ function parse(): z.infer<typeof configSchema> {
 export const config = {
   get databaseUrl() { return parse().databaseUrl; },
   get ollamaBaseUrl() { return parse().ollamaBaseUrl; },
-  get apiKeySecret() { return parse().apiKeySecret; },
   get jwtSecret() { return parse().jwtSecret; },
   get logLevel() { return parse().logLevel; },
   get shutdownTimeoutSeconds() { return parse().shutdownTimeoutSeconds; },

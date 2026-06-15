@@ -1,2 +1,4 @@
 node_modules/
 openapi/bundled.yaml
+dist/
+packages/*/dist/

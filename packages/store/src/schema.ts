@@ -87,21 +87,6 @@ export const sessions = pgTable('sessions', {
   sessionsTokenKey: unique().on(t.token),
 }));
 
-// ─── Table: api_keys ──────────────────────────────────────────────────────
-
-export const apiKeys = pgTable('api_keys', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id),
-  keyHash: text('key_hash').notNull(),
-  name: text('name').notNull(),
-  lastUsedAt: timestamp('last_used_at'),
-  expiresAt: timestamp('expires_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-}, (t) => ({
-  apiKeysUserIdIdx: index().on(t.userId),
-  apiKeysKeyHashKey: unique().on(t.keyHash),
-}));
-
 // ─── Table: threads ───────────────────────────────────────────────────────
 
 export const threads = pgTable('threads', {
@@ -270,14 +255,9 @@ export const toolCalls = pgTable('tool_calls', {
 // ─── Relations ────────────────────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
-  apiKeys: many(apiKeys),
   threads: many(threads),
   settings: many(settings),
   sessions: many(sessions),
-}));
-
-export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
-  user: one(users, { fields: [apiKeys.userId], references: [users.id] }),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -340,9 +320,6 @@ export type NewUser = typeof users.$inferInsert;
 
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
-
-export type ApiKey = typeof apiKeys.$inferSelect;
-export type NewApiKey = typeof apiKeys.$inferInsert;
 
 export type Thread = typeof threads.$inferSelect;
 export type NewThread = typeof threads.$inferInsert;

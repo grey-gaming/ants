@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS "api_keys";--> statement-breakpoint
 CREATE TABLE "sessions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
