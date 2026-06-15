@@ -40,6 +40,7 @@ import {
   updateTool,
   createRun,
   updateRunStatus,
+  getModels,
   type Thread,
   type Message,
   type Run,
@@ -50,6 +51,7 @@ import {
   type ApiKey,
   type Setting,
   type Tool,
+  type ModelInfo,
 } from '@/lib/api'
 
 // ─── Query Keys ──────────────────────────────────────────────────────────────
@@ -69,6 +71,7 @@ export const queryKeys = {
   setting: (key: string) => ['setting', key] as const,
   tools: ['tools'] as const,
   tool: (id: string) => ['tool', id] as const,
+  models: ['models'] as const,
 }
 
 // ─── Query Hooks ─────────────────────────────────────────────────────────────
@@ -477,6 +480,35 @@ export function useUpdateTool() {
       )
     },
   })
+}
+
+// ─── Model Hooks ──────────────────────────────────────────────────────────────
+
+export function useModels() {
+  return useQuery<ModelInfo[], Error>({
+    queryKey: queryKeys.models,
+    queryFn: getModels,
+  })
+}
+
+export function useDefaultModel() {
+  return useQuery<string | null, Error>({
+    queryKey: ['settings', 'default_model'],
+    queryFn: () => getSetting('default_model').then(s => s?.value?.model as string | null),
+    retry: false,
+  })
+}
+
+export function useSetDefaultModel() {
+  const queryClient = useQueryClient()
+  return useMutation<Setting, Error, { model: string }>(
+    {
+      mutationFn: ({ model }) => updateSetting('default_model', { value: { model } }),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['settings', 'default_model'] })
+      },
+    }
+  )
 }
 
 // ─── Additional Run Hooks ────────────────────────────────────────────────────
