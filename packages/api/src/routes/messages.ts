@@ -16,7 +16,7 @@ export function createMessageRoutes(svc: Services) {
     if (body.role === "user") {
       try {
         const agents = await svc.agent.list();
-        const t1Agent = agents.find((a) => a.tier === "t1" && a.status === "active");
+        const t1Agent = agents.find((a) => a.tier === "T1" && a.status === "active");
 
         if (t1Agent) {
           const run = await svc.run.create({
