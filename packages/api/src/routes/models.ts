@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "hono/types";
-import { config } from "@ants/core";
+import { config, logger } from "@ants/core";
 
 type AppEnv = Env & { Variables: { userId: string } };
 
@@ -30,26 +30,29 @@ export function createModelRoutes() {
           });
         }
       }
-    } catch {
-      // Ollama not available — skip silently
+    } catch (err) {
+      logger.warn("models", `Ollama fetch failed: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     // Fetch from MLX (OpenAI-compatible /v1/models)
-    try {
-      const mlxUrl = (process.env.MLX_BASE_URL || config.ollamaBaseUrl).replace(/\/+$/, "");
-      const mlxRes = await fetch(`${mlxUrl}/v1/models`);
-      if (mlxRes.ok) {
-        const data = await mlxRes.json();
-        for (const model of data.data ?? []) {
-          models.push({
-            id: model.id,
-            name: model.id,
-            provider: "mlx",
-          });
+    const mlxBaseUrl = process.env.MLX_BASE_URL;
+    if (mlxBaseUrl) {
+      try {
+        const mlxUrl = mlxBaseUrl.replace(/\/+$/, "");
+        const mlxRes = await fetch(`${mlxUrl}/v1/models`);
+        if (mlxRes.ok) {
+          const data = await mlxRes.json();
+          for (const model of data.data ?? []) {
+            models.push({
+              id: model.id,
+              name: model.id,
+              provider: "mlx",
+            });
+          }
         }
+      } catch (err) {
+        logger.warn("models", `MLX fetch failed: ${err instanceof Error ? err.message : String(err)}`);
       }
-    } catch {
-      // MLX not available — skip silently
     }
 
     return c.json(models, 200);
