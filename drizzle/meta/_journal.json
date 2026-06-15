@@ -29,6 +29,13 @@
       "when": 1781526621117,
       "tag": "0003_nice_mysterio",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781536270738,
+      "tag": "0004_brave_monster_badoon",
+      "breakpoints": true
     }
   ]
 }

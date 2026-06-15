@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { getCookie } from "hono/cookie";
 import type { Context, Env } from "hono";
 import { sessions, users } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -15,11 +16,11 @@ export function createAuthMiddleware(db: PostgresJsDatabase) {
   return async function authMiddleware(c: Context<AppEnv>, next: () => Promise<void>) {
     // Skip auth for public auth routes
     const path = c.req.path;
-    if (path === "/v1/auth/register" || path === "/v1/auth/login" || path === "/v1/auth/logout" || path === "/v1/auth/me") {
+    if (path === "/v1/auth/register" || path === "/v1/auth/login" || path === "/v1/auth/logout") {
       return next();
     }
 
-    const token = c.getCookie(SESSION_COOKIE_NAME);
+    const token = getCookie(c)[SESSION_COOKIE_NAME];
     if (!token) {
       throw Object.assign(new Error("Not authenticated"), { name: "AuthError" });
     }

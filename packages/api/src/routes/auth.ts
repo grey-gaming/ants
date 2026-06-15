@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { getCookie } from "hono/cookie";
 import type { Env } from "hono/types";
 import { zValidator } from "../utils/validator";
 import {
@@ -42,7 +43,7 @@ export function createAuthRoutes(svc: Services) {
   });
 
   app.post("/logout", async (c) => {
-    const token = c.getCookie(SESSION_COOKIE_NAME);
+    const token = getCookie(c)[SESSION_COOKIE_NAME];
     if (token) {
       await svc.session.destroy(token);
     }
