@@ -11,7 +11,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import {
   LayoutDashboard,
   MessageSquare,
-  Bot,
   Settings,
   Plus,
   ChevronDown,
@@ -113,7 +112,6 @@ export function Sidebar() {
 
       <nav className="p-3 space-y-1">
         <SidebarLink icon={LayoutDashboard} label="Dashboard" collapsed={isCollapsed} to="/" />
-        <SidebarLink icon={Bot} label="Agents" collapsed={isCollapsed} to="/agents" />
         <SidebarLink icon={Settings} label="Settings" collapsed={isCollapsed} to="/settings" />
       </nav>
     </div>
