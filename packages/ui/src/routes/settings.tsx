@@ -6,8 +6,8 @@ import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useThemeStore } from '@/stores/theme'
-import { Eye, EyeOff, Copy, Trash2, Plus, Shield, Loader2 } from 'lucide-react'
-import { useCurrentUser } from '@/hooks/api'
+import { Eye, EyeOff, Copy, Trash2, Plus, Shield, Loader2, Check } from 'lucide-react'
+import { useCurrentUser, useModels, useDefaultModel, useSetDefaultModel } from '@/hooks/api'
 
 export function SettingsPage() {
   const { theme, setTheme } = useThemeStore()
@@ -110,9 +110,16 @@ export function SettingsPage() {
             <CardContent className="space-y-4">
               <div>
                 <label className="mb-2 block text-body-sm font-medium text-text-secondary">
-                  Ollama/MLX Endpoint
+                  Endpoint URL
                 </label>
                 <Input defaultValue={import.meta.env.VITE_LLM_BASE_URL ?? 'http://localhost:11434'} />
+              </div>
+              <Separator />
+              <div>
+                <label className="mb-2 block text-body-sm font-medium text-text-secondary">
+                  Default Model
+                </label>
+                <ModelSelector />
               </div>
             </CardContent>
           </Card>
@@ -161,6 +168,56 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+function ModelSelector() {
+  const { data: models, isLoading: loadingModels } = useModels()
+  const { data: savedSetting } = useDefaultModel()
+  const setSelected = useSetDefaultModel()
+
+  const savedModel = typeof savedSetting === 'string' ? savedSetting : null
+
+  if (loadingModels) {
+    return (
+      <div className="flex items-center gap-2 py-4 text-sm text-text-tertiary">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading models...
+      </div>
+    )
+  }
+
+  if (!models || models.length === 0) {
+    return (
+      <p className="text-sm text-text-tertiary">
+        No models available. Ensure Ollama or MLX is running.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-1">
+      {models.map((model) => {
+        const isSelected = savedModel === model.id
+        return (
+          <button
+            key={model.id}
+            type="button"
+            onClick={() => setSelected.mutate({ model: model.id })}
+            className={cn(
+              'flex w-full items-center justify-between rounded-md border border-border px-3 py-2.5 text-left transition-colors hover:bg-surface-2',
+              isSelected && 'border-accent bg-accent-muted'
+            )}
+          >
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm text-text-primary">{model.name}</span>
+              <span className="text-xs text-text-tertiary capitalize">{model.provider}</span>
+            </div>
+            {isSelected && <Check className="h-4 w-4 text-accent" />}
+          </button>
+        )
+      })}
     </div>
   )
 }
