@@ -122,7 +122,7 @@ export function buildApp(dbOnly?: PostgresJsDatabase): Hono<AppEnv> & { worker: 
   app.route("/v1/tools", createToolRoutes(services));
   app.route("/v1/queue", createQueueRoutes(services));
   app.route("/v1/auth", createAuthRoutes(services));
-  app.route("/v1/users", createUserRoutes(services, db));
+  app.route("/v1/users", createUserRoutes(services));
   app.route("/v1/settings", createSettingsRoutes(services));
   app.route("/v1/invite-codes", createInviteCodesRoutes(services));
   app.route("/v1/worker", createWorkerRoutes(services, workerManager));

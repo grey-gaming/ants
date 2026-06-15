@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { isAuthenticated, validateApiKey } from '@/lib/api'
+import { isAuthenticated, login, clearAuthToken } from '@/lib/api'
 import { Loader2 } from 'lucide-react'
 
 export function AuthGuard(Component: React.ComponentType<any>) {
@@ -35,24 +35,24 @@ export function AuthGuard(Component: React.ComponentType<any>) {
 }
 
 export function LoginPage() {
-  const [apiKey, setApiKey] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!apiKey.trim()) return
+    if (!email.trim() || !password.trim()) return
 
     setLoading(true)
     setError(null)
 
     try {
-      const result = await validateApiKey(apiKey.trim())
-      localStorage.setItem('ants_api_key', result.apiKey)
+      await login(email.trim(), password)
       navigate({ to: '/' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid API key')
+      setError(err instanceof Error ? err.message : 'Invalid email or password')
     } finally {
       setLoading(false)
     }
@@ -67,20 +67,32 @@ export function LoginPage() {
           </div>
           <h1 className="text-heading-lg text-text-primary">Welcome to ANTS</h1>
           <p className="mt-2 text-body text-text-secondary">
-            Enter your API key to continue
+            Sign in to your account
           </p>
         </div>
         <form onSubmit={handleLogin}>
           <div className="space-y-4">
             <div>
               <label className="mb-2 block text-body-sm font-medium text-text-secondary">
-                API Key
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-body text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-body-sm font-medium text-text-secondary">
+                Password
               </label>
               <input
                 type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk_..."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
                 className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-body text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
@@ -89,7 +101,7 @@ export function LoginPage() {
             )}
             <button
               type="submit"
-              disabled={loading || !apiKey.trim()}
+              disabled={loading || !email.trim() || !password.trim()}
               className="w-full rounded-md bg-accent px-4 py-2 text-body font-medium text-white hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

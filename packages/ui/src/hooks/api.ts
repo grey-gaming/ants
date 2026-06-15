@@ -21,13 +21,10 @@ import {
   cancelRun,
   updateAgent,
   updateUser,
-  validateApiKey,
   streamRunEvents,
-  clearAuthToken,
-  registerUser,
-  createApiKey,
-  getApiKeys,
-  revokeApiKey,
+  login as loginApi,
+  logout as logoutApi,
+  register as registerApi,
   verifyEmail,
   getSettings,
   getSetting,
@@ -47,7 +44,6 @@ import {
   type AgentType,
   type User,
   type ThreadActivity,
-  type ApiKey,
   type Setting,
   type Tool,
   type ModelInfo,
@@ -65,7 +61,6 @@ export const queryKeys = {
   agent: (id: string) => ['agent', id] as const,
   user: ['user', 'me'] as const,
   activity: (threadId: string) => ['activity', threadId] as const,
-  apiKeys: ['apiKeys'] as const,
   settings: ['settings'] as const,
   setting: (key: string) => ['setting', key] as const,
   tools: ['tools'] as const,
@@ -238,7 +233,8 @@ export function mapAgentStatus(
 
 export function useLogin() {
   const queryClient = useQueryClient()
-  const [key, setKey] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -246,8 +242,7 @@ export function useLogin() {
     setLoading(true)
     setError(null)
     try {
-      const result = await validateApiKey(key)
-      localStorage.setItem('ants_api_key', result.apiKey)
+      await loginApi(email, password)
       queryClient.invalidateQueries()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
@@ -255,9 +250,9 @@ export function useLogin() {
     } finally {
       setLoading(false)
     }
-  }, [key, queryClient])
+  }, [email, password, queryClient])
 
-  return { key, setKey, loading, error, login }
+  return { email, setEmail, password, setPassword, loading, error, login }
 }
 
 export function useStreamChat(threadId: string) {
@@ -322,11 +317,11 @@ export function useRegister() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const register = useCallback(async (data: { email: string; name: string; inviteCode?: string }) => {
+  const register = useCallback(async (data: { email: string; name: string; password: string; inviteCode?: string }) => {
     setLoading(true)
     setError(null)
     try {
-      const user = await registerUser(data)
+      const user = await registerApi(data.email, data.name, data.password, data.inviteCode)
       queryClient.invalidateQueries({ queryKey: queryKeys.user })
       return user
     } catch (err) {
@@ -363,35 +358,12 @@ export function useVerifyEmail() {
   return { verify, loading, error, clearError: () => setError(null) }
 }
 
-// ─── API Key Hooks ───────────────────────────────────────────────────────────
-
-export function useApiKeys() {
-  return useQuery<ApiKey[], Error>({
-    queryKey: queryKeys.apiKeys,
-    queryFn: getApiKeys,
-  })
-}
-
-export function useCreateApiKey() {
+export function useLogout() {
   const queryClient = useQueryClient()
-  return useMutation<ApiKey, Error, { name?: string; expiresAt?: string }>({
-    mutationFn: (data) => createApiKey(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys })
-    },
-  })
-}
-
-export function useRevokeApiKey() {
-  const queryClient = useQueryClient()
-  return useMutation<{ deleted: true }, Error, string>({
-    mutationFn: (id) => revokeApiKey(id),
-    onSuccess: (_data, id) => {
-      queryClient.setQueryData(queryKeys.apiKeys, (old: ApiKey[] | undefined) =>
-        old ? old.filter((k) => k.id !== id) : undefined
-      )
-    },
-  })
+  return useCallback(async () => {
+    await logoutApi()
+    queryClient.clear()
+  }, [queryClient])
 }
 
 // ─── Settings Hooks ──────────────────────────────────────────────────────────
@@ -530,14 +502,4 @@ export function useUpdateRunStatus() {
       queryClient.setQueryData(queryKeys.run(data.id), data)
     },
   })
-}
-
-// ─── Additional User Hooks ───────────────────────────────────────────────────
-
-export function useLogout() {
-  const queryClient = useQueryClient()
-  return useCallback(async () => {
-    await clearAuthToken()
-    queryClient.clear()
-  }, [queryClient])
 }

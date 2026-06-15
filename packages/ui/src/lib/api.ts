@@ -1,8 +1,6 @@
 const API_BASE = '/v1'
 
-export interface ApiKeyAuth {
-  key: string
-}
+// ─── Data interfaces ────────────────────────────────────────────
 
 export interface Thread {
   id: string
@@ -78,19 +76,6 @@ export interface User {
   name: string
 }
 
-export interface AuthResult {
-  apiKey: string
-}
-
-export interface ApiKey {
-  id: string
-  name: string
-  prefix: string
-  expiresAt?: string
-  createdAt: string
-  lastUsedAt?: string
-}
-
 export interface Setting {
   id: string
   key: string
@@ -116,32 +101,16 @@ export interface ModelInfo {
   provider: string
 }
 
-export async function getAuthToken(): Promise<string | null> {
-  return localStorage.getItem('ants_api_key')
-}
-
-export async function setAuthToken(key: string): Promise<void> {
-  localStorage.setItem('ants_api_key', key)
-}
-
-export async function clearAuthToken(): Promise<void> {
-  localStorage.removeItem('ants_api_key')
-}
-
-export async function isAuthenticated(): Promise<boolean> {
-  const key = await getAuthToken()
-  return !!key
-}
+// ─── Request helper ─────────────────────────────────────────────
+// All requests carry credentials: 'same-origin' so the browser
+// sends the HTTP-only session cookie (ants_session) automatically.
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = await getAuthToken()
-  if (!token) throw new Error('Not authenticated')
-
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
       ...options?.headers,
     },
   })
@@ -154,49 +123,62 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json()
 }
 
-// Auth
-export async function validateApiKey(key: string): Promise<AuthResult> {
+// ─── Auth (cookie-based) ────────────────────────────────────────
+
+export async function isAuthenticated(): Promise<boolean> {
+  try {
+    await request<User>('/auth/me')
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function login(email: string, password: string): Promise<void> {
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
+    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiKey: key }),
+    body: JSON.stringify({ email, password }),
   })
   if (!response.ok) {
-    throw new Error(`Auth failed: ${response.status}`)
+    const error = await response.text()
+    throw new Error(`Login failed: ${error}`)
   }
-  return response.json()
 }
 
-export async function registerUser(data: { email: string; name: string; inviteCode?: string }): Promise<User> {
+export async function logout(): Promise<void> {
+  // Best-effort: server invalidates the session cookie.
+  // Ignore network errors (e.g. offline).
+  await fetch(`${API_BASE}/auth/logout`, {
+    method: 'POST',
+    credentials: 'same-origin',
+  }).catch(() => {})
+}
+
+export async function register(
+  email: string,
+  name: string,
+  password: string,
+  inviteCode?: string,
+): Promise<User> {
   const response = await fetch(`${API_BASE}/auth/register`, {
     method: 'POST',
+    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ email, name, password, inviteCode }),
   })
   if (!response.ok) {
-    throw new Error(`Register failed: ${response.status}`)
+    const error = await response.text()
+    throw new Error(`Register failed: ${error}`)
   }
   return response.json()
-}
-
-export async function createApiKey(data: { name?: string; expiresAt?: string }): Promise<ApiKey> {
-  return request<ApiKey>('/auth/keys', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
-}
-
-export async function getApiKeys(): Promise<ApiKey[]> {
-  return request<ApiKey[]>('/auth/keys')
-}
-
-export async function revokeApiKey(id: string): Promise<{ deleted: true }> {
-  return request<{ deleted: true }>('/auth/keys/' + id, { method: 'DELETE' })
 }
 
 export async function verifyEmail(token: string): Promise<User> {
   const response = await fetch(`${API_BASE}/auth/verify/${token}`, {
     method: 'POST',
+    credentials: 'same-origin',
   })
   if (!response.ok) {
     throw new Error(`Verify failed: ${response.status}`)
@@ -204,13 +186,10 @@ export async function verifyEmail(token: string): Promise<User> {
   return response.json()
 }
 
-export async function logout(): Promise<void> {
-  await clearAuthToken()
-}
+// ─── Users ──────────────────────────────────────────────────────
 
-// Users
 export async function getCurrentUser(): Promise<User> {
-  return request<User>('/users/me')
+  return request<User>('/auth/me')
 }
 
 export async function updateUser(data: { name?: string }): Promise<User> {
@@ -220,16 +199,17 @@ export async function updateUser(data: { name?: string }): Promise<User> {
   })
 }
 
-// Threads
+// ─── Threads ────────────────────────────────────────────────────
+
 export async function getThreads(): Promise<Thread[]> {
   const result = await request<{ data: Thread[]; nextCursor: string | null }>('/threads')
   return result.data
 }
 
 export async function createThread(title: string = 'New Thread'): Promise<Thread> {
-  return request<Thread>('/threads', { 
-    method: 'POST', 
-    body: JSON.stringify({ title }) 
+  return request<Thread>('/threads', {
+    method: 'POST',
+    body: JSON.stringify({ title }),
   })
 }
 
@@ -248,13 +228,15 @@ export async function deleteThread(id: string): Promise<void> {
   await request(`/threads/${id}`, { method: 'DELETE' })
 }
 
-// Messages — server: GET /v1/messages/:threadId
+// ─── Messages ───────────────────────────────────────────────────
+
+// server: GET /v1/messages/:threadId
 export async function getMessages(threadId: string): Promise<Message[]> {
   const result = await request<{ data: Message[]; nextCursor: string | null }>(`/messages/${threadId}`)
   return result.data
 }
 
-// Messages — server: POST /v1/messages { threadId, role, content }
+// server: POST /v1/messages { threadId, role, content }
 export async function sendMessage(threadId: string, content: string): Promise<Message> {
   return request<Message>('/messages', {
     method: 'POST',
@@ -262,7 +244,8 @@ export async function sendMessage(threadId: string, content: string): Promise<Me
   })
 }
 
-// Agents
+// ─── Agents ─────────────────────────────────────────────────────
+
 export async function getAgents(): Promise<AgentType[]> {
   return request<AgentType[]>('/agents')
 }
@@ -278,12 +261,14 @@ export async function updateAgent(id: string, data: Partial<AgentType>): Promise
   })
 }
 
-// Runs — server: GET /v1/runs/:id
+// ─── Runs ───────────────────────────────────────────────────────
+
+// server: GET /v1/runs/:id
 export async function getRun(id: string): Promise<Run> {
   return request<Run>(`/runs/${id}`)
 }
 
-// Run steps — server: GET /v1/runs/:id/steps
+// server: GET /v1/runs/:id/steps
 export async function getRunSteps(runId: string): Promise<RunStep[]> {
   return request<RunStep[]>(`/runs/${runId}/steps`)
 }
@@ -292,56 +277,115 @@ export async function cancelRun(id: string): Promise<Run> {
   return request<Run>(`/runs/${id}/cancel`, { method: 'POST' })
 }
 
-// Thread activity — server: GET /v1/threads/:threadId/activity
+export async function createRun(threadId: string, agentTypeId: string): Promise<Run> {
+  return request<Run>('/runs', {
+    method: 'POST',
+    body: JSON.stringify({ threadId, agentTypeId }),
+  })
+}
+
+export async function updateRunStatus(id: string, status: Run['status']): Promise<Run> {
+  return request<Run>(`/runs/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+// ─── Thread activity ────────────────────────────────────────────
+
+// server: GET /v1/threads/:threadId/activity
 export async function getThreadActivity(threadId: string): Promise<ThreadActivity> {
   return request<ThreadActivity>(`/threads/${threadId}/activity`)
 }
 
-// SSE Streaming — server: GET /v1/threads/:threadId/runs/:runId/stream
+// ─── SSE Streaming ──────────────────────────────────────────────
+// NOTE: EventSource does not support custom credentials, so we
+// use fetch-based SSE instead. This ensures the session cookie
+// is sent with the request via credentials: 'same-origin'.
+// server: GET /v1/threads/:threadId/runs/:runId/stream
+
 export function streamRunEvents(
   threadId: string,
   runId: string,
   onEvent: (event: Record<string, unknown>) => void,
   onComplete: () => void,
-  onError: (error: Error) => void
+  onError: (error: Error) => void,
 ): AbortController {
   const controller = new AbortController()
+  let connected = true
 
-  const token = localStorage.getItem('ants_api_key')
-  if (!token) {
-    onError(new Error('Not authenticated'))
-    return controller
+  const connect = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE}/threads/${threadId}/runs/${runId}/stream`,
+        {
+          credentials: 'same-origin',
+          signal: controller.signal,
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error(`SSE connection failed: ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('No response body')
+      }
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (connected) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        let eventType = 'message'
+        let data = ''
+
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            eventType = line.slice(6).trim()
+          } else if (line.startsWith('data:')) {
+            data = line.slice(5).trim()
+          } else if (line === '') {
+            // Empty line = end of SSE event
+            if (data) {
+              try {
+                const parsed = JSON.parse(data)
+                if (parsed.type === 'complete') {
+                  onComplete()
+                  connected = false
+                  reader.releaseLock()
+                  return
+                }
+                onEvent(parsed)
+              } catch {
+                // Skip non-JSON data (e.g. keepalive pings)
+              }
+              data = ''
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        onError(err instanceof Error ? err : new Error(String(err)))
+      }
+    }
   }
 
-  const eventSource = new EventSource(`${API_BASE}/threads/${threadId}/runs/${runId}/stream`)
-
-  eventSource.addEventListener('message', (event: MessageEvent) => {
-    try {
-      const data = JSON.parse(event.data)
-      if (data.type === 'complete') {
-        onComplete()
-        eventSource.close()
-      } else {
-        onEvent(data)
-      }
-    } catch {
-      // Skip non-JSON events (e.g., keepalive pings)
-    }
-  })
-
-  eventSource.addEventListener('error', () => {
-    onError(new Error('Stream error'))
-    eventSource.close()
-  })
-
-  controller.signal.addEventListener('abort', () => {
-    eventSource.close()
-  })
+  void connect()
 
   return controller
 }
 
-// Settings
+// ─── Settings ───────────────────────────────────────────────────
+
 export async function getSettings(): Promise<Setting[]> {
   return request<Setting[]>('/settings')
 }
@@ -350,7 +394,10 @@ export async function getSetting(key: string): Promise<Setting | null> {
   return request<Setting>(`/settings/${key}`)
 }
 
-export async function updateSetting(key: string, data: { value?: Record<string, unknown>; isGlobal?: boolean }): Promise<Setting> {
+export async function updateSetting(
+  key: string,
+  data: { value?: Record<string, unknown>; isGlobal?: boolean },
+): Promise<Setting> {
   return request<Setting>(`/settings/${key}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -361,7 +408,8 @@ export async function deleteSetting(key: string): Promise<{ deleted: true }> {
   return request<{ deleted: true }>(`/settings/${key}`, { method: 'DELETE' })
 }
 
-// Tools
+// ─── Tools ──────────────────────────────────────────────────────
+
 export async function getTools(): Promise<Tool[]> {
   return request<Tool[]>('/tools')
 }
@@ -370,7 +418,9 @@ export async function getTool(id: string): Promise<Tool | null> {
   return request<Tool>(`/tools/${id}`)
 }
 
-export async function registerTool(data: { name: string; description: string; type: string; config: Record<string, unknown> }): Promise<Tool> {
+export async function registerTool(
+  data: { name: string; description: string; type: string; config: Record<string, unknown> },
+): Promise<Tool> {
   return request<Tool>('/tools', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -384,22 +434,8 @@ export async function updateTool(id: string, data: Partial<Tool>): Promise<Tool>
   })
 }
 
-// Models
+// ─── Models ─────────────────────────────────────────────────────
+
 export async function getModels(): Promise<ModelInfo[]> {
   return request<ModelInfo[]>('/models')
-}
-
-// Runs - additional endpoints
-export async function createRun(threadId: string, agentTypeId: string): Promise<Run> {
-  return request<Run>('/runs', {
-    method: 'POST',
-    body: JSON.stringify({ threadId, agentTypeId }),
-  })
-}
-
-export async function updateRunStatus(id: string, status: Run['status']): Promise<Run> {
-  return request<Run>(`/runs/${id}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  })
 }

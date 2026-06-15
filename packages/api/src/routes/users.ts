@@ -4,13 +4,10 @@ import type { Services } from "../types";
 
 type AppEnv = Env & { Variables: { userId: string } };
 
-export function createUserRoutes(svc: Services, db: any) {
+export function createUserRoutes(svc: Services) {
   const app = new Hono<AppEnv>();
 
   app.get("/", async (c) => {
-    if (c.req.header("X-Admin") !== "true") {
-      return c.json({ error: "Admin access required" }, 401);
-    }
     const users = await svc.user.list("", { limit: 100 });
     return c.json(users, 200);
   });

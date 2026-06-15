@@ -27,6 +27,6 @@
       "@ants/store/*": ["./packages/store/src/*"]
     }
    },
-     "include": ["packages/*/src"],
+     "include": ["packages/*/src", "scripts/*"],
   "exclude": ["node_modules", "drizzle"]
 }

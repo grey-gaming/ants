@@ -2,7 +2,7 @@ import { eq, desc } from "drizzle-orm";
 import { users, inviteCodes } from "@ants/store";
 import type { User, InviteCode } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { hashApiKey, hashApiKey as hashPassword, validateApiKey as comparePassword } from "../auth/api-key";
+import bcrypt from "bcryptjs";
 import { NotFoundError, ValidationError, ConflictError } from "../lib/errors";
 
 interface UserUpdateInput {
@@ -42,7 +42,7 @@ export function createUserService(db: PostgresJsDatabase): UserService {
       await db.update(inviteCodes).set({ used: true })
         .where(eq(inviteCodes.code, inviteCode));
     }
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await bcrypt.hash(password, 12);
     try {
       const [user] = await db.insert(users).values({
         email: email.trim().toLowerCase(),
@@ -74,7 +74,7 @@ export function createUserService(db: PostgresJsDatabase): UserService {
     if (!existing) throw new NotFoundError("User", userId);
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (input.name !== undefined) updates.name = input.name.trim();
-    if (input.password !== undefined) updates.passwordHash = await hashApiKey(input.password);
+    if (input.password !== undefined) updates.passwordHash = await bcrypt.hash(input.password, 12);
     const [updated] = await db.update(users).set(updates)
       .where(eq(users.id, userId)).returning();
     return updated;
@@ -102,7 +102,7 @@ export function createUserService(db: PostgresJsDatabase): UserService {
   }
 
   async function verifyPassword(user: User, password: string): Promise<boolean> {
-    return comparePassword(password, user.passwordHash);
+    return bcrypt.compare(password, user.passwordHash);
   }
 
   return { create, getById, getCurrentUser, update, deactivate, list, findByEmail, verifyPassword };

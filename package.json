@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "drizzle-kit migrate",
     "db:generate": "drizzle-kit generate",
+    "setup:db": "bun run scripts/setup-first-user.ts",
     "spec:bundle": "bun run scripts/bundle-spec.ts",
     "spec:validate": "bun run scripts/bundle-spec.ts && npx @redocly/cli lint openapi/bundled.yaml",
     "spec:types": "bun run scripts/bundle-spec.ts && npx openapi-typescript openapi/bundled.yaml -o packages/core/src/types/api.d.ts"

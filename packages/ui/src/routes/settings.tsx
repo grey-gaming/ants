@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,7 +5,7 @@ import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useThemeStore } from '@/stores/theme'
-import { Eye, EyeOff, Copy, Trash2, Plus, Shield, Loader2, Check } from 'lucide-react'
+import { Loader2, Check } from 'lucide-react'
 import { useCurrentUser, useModels, useDefaultModel, useSetDefaultModel } from '@/hooks/api'
 import { ToolRegistry } from '@/components/settings/tool-registry'
 import { AgentsList } from '@/components/settings/agents-list'
@@ -14,10 +13,6 @@ import { AgentsList } from '@/components/settings/agents-list'
 export function SettingsPage() {
   const { theme, setTheme } = useThemeStore()
   const { data: user, isLoading } = useCurrentUser()
-  const [showKey, setShowKey] = useState(false)
-
-  const apiKey = localStorage.getItem('ants_api_key') ?? ''
-  const maskedKey = apiKey.length > 8 ? apiKey.slice(0, 8) + '••••' : apiKey
 
   if (isLoading) {
     return (
@@ -33,14 +28,13 @@ export function SettingsPage() {
       <div>
         <h1 className="text-heading-lg text-text-primary">Settings</h1>
         <p className="text-body text-text-secondary mt-1">
-          Manage your account, API keys, and preferences
+          Manage your account and preferences
         </p>
       </div>
 
       <Tabs defaultValue="general" className="space-y-4">
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="model">Model</TabsTrigger>
           <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="tools">Tools</TabsTrigger>
@@ -64,43 +58,6 @@ export function SettingsPage() {
                   Email
                 </label>
                 <Input defaultValue={user?.email ?? ''} disabled />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="api-keys">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-heading-md">API Keys</CardTitle>
-                <Button size="sm" disabled>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Generate New Key
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-md border border-border p-4">
-                <div className="flex items-center gap-3">
-                  <Shield className="h-5 w-5 text-accent" />
-                  <div>
-                    <code className="text-sm text-text-primary">
-                      {showKey ? apiKey : maskedKey}
-                    </code>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => setShowKey(!showKey)}>
-                    {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => navigator.clipboard.writeText(apiKey)}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-error" disabled>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
