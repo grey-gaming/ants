@@ -1,38 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { isAuthenticated, login } from '@/lib/api'
+import { login } from '@/lib/api'
 import { Loader2 } from 'lucide-react'
 
-export function AuthGuard(Component: React.ComponentType<any>) {
-  return function AuthenticatedComponent(props: any) {
-    const [checking, setChecking] = useState(true)
-
-    useEffect(() => {
-      checkAuth()
-    }, [])
-
-    async function checkAuth() {
-      try {
-        const authenticated = await isAuthenticated()
-        if (!authenticated) {
-          window.location.href = '/login'
-        }
-      } finally {
-        setChecking(false)
-      }
-    }
-
-    if (checking) {
-      return (
-        <div className="flex min-h-screen items-center justify-center bg-surface-0">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
-        </div>
-      )
-    }
-
-    return <Component {...props} />
-  }
-}
+// ─── Login Page ───────────────────────────────────────────────────────────────
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
