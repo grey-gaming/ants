@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { isAuthenticated, login } from '@/lib/api'
 import { Loader2 } from 'lucide-react'
@@ -7,9 +7,9 @@ export function AuthGuard(Component: React.ComponentType<any>) {
   return function AuthenticatedComponent(props: any) {
     const [checking, setChecking] = useState(true)
 
-    useState(() => {
+    useEffect(() => {
       checkAuth()
-    })
+    }, [])
 
     async function checkAuth() {
       try {
