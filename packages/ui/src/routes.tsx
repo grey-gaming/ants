@@ -32,6 +32,7 @@ const layoutRoute = createRoute({
         throw new Error('unauthenticated')
       }
     } catch {
+      console.error('Auth check failed, redirecting to login')
       throw redirect({ to: '/login' })
     }
   },
