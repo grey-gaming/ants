@@ -8,3 +8,4 @@ export { createUserService } from "./user-service";
 export { createApiKeyService } from "./api-key-service";
 export { createSettingsService } from "./settings-service";
 export { createInviteCodeService } from "./invite-code-service";
+export { createSessionService } from "./session-service";

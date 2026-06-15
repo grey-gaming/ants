@@ -2,7 +2,7 @@ import { eq, desc } from "drizzle-orm";
 import { users, inviteCodes } from "@ants/store";
 import type { User, InviteCode } from "@ants/store";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { hashApiKey } from "../auth/api-key";
+import { hashApiKey, hashApiKey as hashPassword, validateApiKey as comparePassword } from "../auth/api-key";
 import { NotFoundError, ValidationError, ConflictError } from "../lib/errors";
 
 interface UserUpdateInput {
@@ -13,12 +13,14 @@ interface UserUpdateInput {
 interface UserListOptions { limit?: number; }
 
 export interface UserService {
-  create(email: string, name: string, inviteCode?: string): Promise<User>;
+  create(email: string, name: string, password: string, inviteCode?: string): Promise<User>;
   getById(id: string): Promise<User | null>;
   getCurrentUser(userId: string): Promise<User>;
   update(userId: string, input: UserUpdateInput): Promise<User>;
   deactivate(userId: string, adminId: string): Promise<User>;
   list(userId: string, options?: UserListOptions): Promise<User[]>;
+  findByEmail(email: string): Promise<User | null>;
+  verifyPassword(user: User, password: string): Promise<boolean>;
 }
 
 export function createUserService(db: PostgresJsDatabase): UserService {
@@ -31,18 +33,21 @@ export function createUserService(db: PostgresJsDatabase): UserService {
       throw new ConflictError("Invite code expired");
   }
 
-  async function create(email: string, name: string, inviteCode?: string): Promise<User> {
+  async function create(email: string, name: string, password: string, inviteCode?: string): Promise<User> {
     if (!email?.trim()) throw new ValidationError("Email is required");
     if (!name?.trim()) throw new ValidationError("Name is required");
-    if (!inviteCode) {
-      throw new ConflictError("Invite code required");
+    if (!password || password.length < 6) throw new ValidationError("Password must be at least 6 characters");
+    if (inviteCode) {
+      await checkInviteCode(inviteCode);
+      await db.update(inviteCodes).set({ used: true })
+        .where(eq(inviteCodes.code, inviteCode));
     }
-    await checkInviteCode(inviteCode);
-    await db.update(inviteCodes).set({ used: true })
-      .where(eq(inviteCodes.code, inviteCode));
+    const passwordHash = await hashPassword(password);
     try {
       const [user] = await db.insert(users).values({
-        email: email.trim().toLowerCase(), name: name.trim(),
+        email: email.trim().toLowerCase(),
+        name: name.trim(),
+        passwordHash,
       }).returning();
       return user;
     } catch (err: unknown) {
@@ -89,5 +94,16 @@ export function createUserService(db: PostgresJsDatabase): UserService {
     return db.select().from(users).orderBy(desc(users.createdAt)).limit(limit);
   }
 
-  return { create, getById, getCurrentUser, update, deactivate, list };
+  async function findByEmail(email: string): Promise<User | null> {
+    const [user] = await db.select().from(users)
+      .where(eq(users.email, email.trim().toLowerCase()))
+      .limit(1);
+    return user ?? null;
+  }
+
+  async function verifyPassword(user: User, password: string): Promise<boolean> {
+    return comparePassword(password, user.passwordHash);
+  }
+
+  return { create, getById, getCurrentUser, update, deactivate, list, findByEmail, verifyPassword };
 }

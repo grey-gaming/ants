@@ -37,6 +37,7 @@ export { createUserService } from "./services/user-service";
 export { createApiKeyService } from "./services/api-key-service";
 export { createSettingsService } from "./services/settings-service";
 export { createInviteCodeService } from "./services/invite-code-service";
+export { createSessionService } from "./services/session-service";
 
 export type { RunService } from "./services/run-service";
 export type { MessageService } from "./services/message-service";
@@ -46,3 +47,4 @@ export type { UserService } from "./services/user-service";
 export type { ApiKeyService } from "./services/api-key-service";
 export type { SettingsService } from "./services/settings-service";
 export type { InviteCodeService } from "./services/invite-code-service";
+export type { SessionService } from "./services/session-service";
