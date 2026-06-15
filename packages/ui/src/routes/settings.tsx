@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useThemeStore } from '@/stores/theme'
 import { Eye, EyeOff, Copy, Trash2, Plus, Shield, Loader2, Check } from 'lucide-react'
 import { useCurrentUser, useModels, useDefaultModel, useSetDefaultModel } from '@/hooks/api'
+import { ToolRegistry } from '@/components/settings/tool-registry'
+import { AgentsList } from '@/components/settings/agents-list'
 
 export function SettingsPage() {
   const { theme, setTheme } = useThemeStore()
@@ -40,6 +42,8 @@ export function SettingsPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="model">Model</TabsTrigger>
+          <TabsTrigger value="agents">Agents</TabsTrigger>
+          <TabsTrigger value="tools">Tools</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
         </TabsList>
 
@@ -121,6 +125,28 @@ export function SettingsPage() {
                 </label>
                 <ModelSelector />
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="agents">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-heading-md">Agent Registry</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AgentsList />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tools">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-heading-md">Tool Registry</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ToolRegistry />
             </CardContent>
           </Card>
         </TabsContent>
