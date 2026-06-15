@@ -41,6 +41,18 @@ export function createAgentService(db: PostgresJsDatabase): AgentService {
       throw new ValidationError("Agent name must not be empty");
     }
 
+    // Map tier to status
+    let status = "active";
+    if (input.tier === "T1") status = "active";
+    else if (input.tier === "T2") status = "active";
+    else if (input.tier === "T3") status = "active";
+
+    // Extract model from modelConfig if available
+    const model = input.modelConfig?.model as string | undefined;
+
+    // Map toolIds to tool names (simplified - would need lookup in real implementation)
+    const tools = input.toolIds || [];
+
     const [agent] = await db
       .insert(agentTypes)
       .values({
@@ -51,6 +63,10 @@ export function createAgentService(db: PostgresJsDatabase): AgentService {
         capabilities: input.capabilities ?? null,
         toolIds: input.toolIds && input.toolIds.length > 0 ? input.toolIds : null,
         active: true,
+        status,
+        model: model ?? null,
+        delegatesTo: [],
+        tools,
       })
       .returning();
 

@@ -6,7 +6,7 @@ This file guides the Qwen3-35B-A3B coding agent working on ANTS. Follow every ru
 
 ## Project Overview
 
-ANTS (Autonomous Networked Task System) is an **API-first multi-agent orchestrator** with no UI. It runs **local inference only** via Ollama — no cloud APIs, no telemetry. The architecture uses a 3-tier conversational hub-and-spoke model (T1 Orchestrator → T2 Specialists → T3 Task Agents). All interaction is through a well-defined OpenAPI 3.1 spec. The system is privacy-first and offline-first: nothing leaves the machine.
+ANTS (Autonomous Networked Task System) is a **multi-agent orchestrator** with a React-based web UI and a REST/SSE API. It runs **local inference only** via Ollama — no cloud APIs, no telemetry. The architecture uses a 3-tier conversational hub-and-spoke model (T1 Orchestrator → T2 Specialists → T3 Task Agents). The API is defined by a well-defined OpenAPI 3.1 spec. The system is privacy-first and offline-first: nothing leaves the machine.
 
 ---
 
@@ -22,6 +22,8 @@ ANTS (Autonomous Networked Task System) is an **API-first multi-agent orchestrat
 - **LLM Provider**: Ollama (local, abstracted behind provider interface)
 - **API Spec**: OpenAPI 3.1 (spec-first development)
 - **Auth**: API keys + row-level security at Drizzle query layer
+- **UI**: React 19 + Vite + Tailwind + shadcn/ui + Radix primitives + Zustand + React Router
+- **UI Tooling**: Biome (lint), TypeScript, Sonner (toasts), Lucide icons, Cmdk (command palette)
 
 ---
 
@@ -36,6 +38,10 @@ bun run lint              # Lint code
 bun run typecheck         # Type-check code
 bun run db:migrate        # Run database migrations
 bun run db:generate       # Generate Drizzle migrations from schema
+cd packages/ui && bun run dev   # Start UI dev server (Vite)
+cd packages/ui && bun run build # Build UI for production
+cd packages/ui && bun run lint  # Lint UI code (Biome)
+cd packages/ui && bun ui:add    # Add shadcn/ui component
 ```
 
 ---
@@ -78,6 +84,16 @@ packages/
     src/
       schema.ts            # Drizzle schema definitions
       migrations/          # Database migrations
+  ui/                      # @ants/ui — React web frontend
+    src/
+      main.tsx             # React entry point
+      routes.tsx           # React Router route definitions
+      stores/              # Zustand state stores (theme, sidebar)
+      hooks/               # Custom hooks (api.ts)
+      components/
+        ui/                # shadcn/ui primitives (button, card, dialog, etc.)
+        ants/              # ANTS-specific components (chat-bubble, thread-card, run-tree, agent-avatar, agent-status, mobile-nav)
+        layout/            # Layout components (app-shell, sidebar, topbar, command-palette, auth-guard)
 tests/
   integration/             # Real Ollama + real PostgreSQL tests
   contract/                # OpenAPI spec conformance

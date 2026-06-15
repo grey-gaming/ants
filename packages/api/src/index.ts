@@ -20,6 +20,7 @@ export function serveApp() {
   const server = Bun.serve({
     fetch: app.fetch.bind(app),
     port,
+    hostname: "0.0.0.0",
   });
   return server;
 }
@@ -31,7 +32,8 @@ if (import.meta.main) {
   const server = Bun.serve({
     fetch: app.fetch.bind(app),
     port,
+    hostname: "0.0.0.0",
   });
   app.worker.start();
-  console.log(`ANTS API listening on http://localhost:${server.port}`);
+  console.log(`ANTS API listening on http://0.0.0.0:${server.port}`);
 }

@@ -11,6 +11,7 @@ interface ThreadListOptions {
 
 interface ThreadUpdateInput {
   title?: string;
+  isPinned?: boolean;
   metadata?: Record<string, unknown>;
 }
 
@@ -112,6 +113,7 @@ export function createThreadService(db: PostgresJsDatabase): ThreadService {
       .update(threads)
       .set({
         ...(input.title !== undefined && { title: input.title.trim() }),
+        ...(input.isPinned !== undefined && { isPinned: input.isPinned }),
         ...(input.metadata !== undefined && { metadata: input.metadata }),
         updatedAt: new Date(),
       })

@@ -68,6 +68,15 @@ export function createMessageService(db: PostgresJsDatabase): MessageService {
       })
       .returning();
 
+    // Update thread metadata
+    const contentPreview = input.content.trim().slice(0, 100) + (input.content.length > 100 ? "..." : "");
+    await db.update(threads)
+      .set({
+        lastMessageSnippet: contentPreview,
+        updatedAt: new Date(),
+      })
+      .where(eq(threads.id, input.threadId));
+
     return message;
   }
 

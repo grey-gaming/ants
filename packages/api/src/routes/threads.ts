@@ -38,7 +38,11 @@ export function createThreadRoutes(svc: Services) {
     if (Object.keys(body).length === 0) {
       return c.json({ error: "No fields to update" }, 422);
     }
-    const result = await svc.thread.update(userId, c.req.param("id"), body);
+    const result = await svc.thread.update(userId, c.req.param("id"), {
+      title: body.title,
+      isPinned: body.isPinned,
+      metadata: body.metadata,
+    });
     return c.json(result, 200);
   });
 
