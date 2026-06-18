@@ -10,14 +10,16 @@ const levelPriority: Record<LogLevel, number> = {
 };
 
 function getLogLevel(): LogLevel {
+  const override = (globalThis as Record<string, unknown>).__antsLogLevel;
+  if (typeof override === "string" && levelPriority[override as LogLevel] !== undefined) {
+    return override as LogLevel;
+  }
   try {
     return config.logLevel;
   } catch {
     return "info";
   }
 }
-
-let currentLogLevel = getLogLevel();
 
 export interface LogEntry {
   timestamp: string;
@@ -33,7 +35,12 @@ export interface LogEntry {
 }
 
 function shouldLog(level: LogLevel): boolean {
-  return levelPriority[level] >= levelPriority[currentLogLevel];
+  return levelPriority[level] >= levelPriority[getLogLevel()];
+}
+
+/** Override the log level at runtime (useful for tests). */
+export function setLogLevel(level: LogLevel): void {
+  (globalThis as Record<string, unknown>).__antsLogLevel = level;
 }
 
 export function log(

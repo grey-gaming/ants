@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { logger } from "./logger";
+import { logger, setLogLevel } from "./logger";
 
 describe("logger", () => {
   let outputs: string[];
@@ -75,6 +75,7 @@ describe("logger", () => {
      });
 
   test("debug is suppressed when log level is info", () => {
+    setLogLevel("info");
     const beforeCount = outputs.length;
     logger.debug("svc", "d");
     expect(outputs.length).toBe(beforeCount);
