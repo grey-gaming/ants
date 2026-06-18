@@ -1,6 +1,6 @@
 import { eq, and, exists, sql, type SQL } from "drizzle-orm";
 import { threads, runs } from "@ants/store";
-import { $db } from "@ants/store";
+import { $db, initDb } from "@ants/store";
 
 export function scopeByUserId(userId: string): SQL {
   return eq(threads.userId, userId);
@@ -11,10 +11,8 @@ export function verifyThreadOwnership(userId: string, threadId: string): SQL {
 }
 
 export function createVerifyRunOwnership(userId: string, threadId: string, runId: string): SQL {
-  const db = $db;
-  if (!db) {
-    throw new Error("Database not initialized");
-  }
+  initDb();
+  const db = $db!;
 
   const subquery = db
     .select({ one: sql`1` })
