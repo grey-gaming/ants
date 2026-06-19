@@ -1,2 +1,2 @@
-export * from './schema';
-export { $db, initDb, connect, disconnect, createPool } from './db';
+export { $db, connect, createPool, disconnect, initDb } from "./db";
+export * from "./schema";

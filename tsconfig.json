@@ -1,32 +1,32 @@
 {
-  "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-      "sourceMap": true,
-      "types": ["bun"],
-      "paths": {
-      "@ants/core": ["./packages/core/src"],
-      "@ants/core/*": ["./packages/core/src/*"],
-      "@ants/api": ["./packages/api/src"],
-      "@ants/api/*": ["./packages/api/src/*"],
-      "@ants/agents": ["./packages/agents/src"],
-      "@ants/agents/*": ["./packages/agents/src/*"],
-      "@ants/tools": ["./packages/tools/src"],
-      "@ants/tools/*": ["./packages/tools/src/*"],
-      "@ants/llm": ["./packages/llm/src"],
-      "@ants/llm/*": ["./packages/llm/src/*"],
-      "@ants/store": ["./packages/store/src"],
-      "@ants/store/*": ["./packages/store/src/*"]
-    }
-   },
-     "include": ["packages/*/src", "scripts/*"],
-  "exclude": ["node_modules", "drizzle"]
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"types": ["bun"],
+		"paths": {
+			"@ants/core": ["./packages/core/src"],
+			"@ants/core/*": ["./packages/core/src/*"],
+			"@ants/api": ["./packages/api/src"],
+			"@ants/api/*": ["./packages/api/src/*"],
+			"@ants/agents": ["./packages/agents/src"],
+			"@ants/agents/*": ["./packages/agents/src/*"],
+			"@ants/tools": ["./packages/tools/src"],
+			"@ants/tools/*": ["./packages/tools/src/*"],
+			"@ants/llm": ["./packages/llm/src"],
+			"@ants/llm/*": ["./packages/llm/src/*"],
+			"@ants/store": ["./packages/store/src"],
+			"@ants/store/*": ["./packages/store/src/*"]
+		}
+	},
+	"include": ["packages/*/src", "scripts/*"],
+	"exclude": ["node_modules", "drizzle", "packages/ui"]
 }

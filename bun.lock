@@ -89,6 +89,7 @@
       "dependencies": {
         "@ants/core": "workspace:*",
         "@ants/llm": "workspace:*",
+        "pg": "^8.13.0",
         "zod": "4.4.3",
       },
       "devDependencies": {

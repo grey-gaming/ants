@@ -1,14 +1,14 @@
 import {
-  createThreadService,
-  createMessageService,
-  createRunService,
-  createAgentService,
-  createToolService,
-  createQueueService,
-  createUserService,
-  createSessionService,
-  createSettingsService,
-  createInviteCodeService,
+	createAgentService,
+	createInviteCodeService,
+	createMessageService,
+	createQueueService,
+	createRunService,
+	createSessionService,
+	createSettingsService,
+	createThreadService,
+	createToolService,
+	createUserService,
 } from "@ants/core";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
@@ -24,29 +24,29 @@ export type SettingsServiceT = ReturnType<typeof createSettingsService>;
 export type InviteCodeServiceT = ReturnType<typeof createInviteCodeService>;
 
 export interface ConfiguredServices {
-  thread: ThreadService;
-  message: MessageServiceT;
-  run: RunServiceT;
-  agent: AgentServiceT;
-  tool: ToolServiceT;
-  queue: QueueServiceT;
-  user: UserServiceT;
-  session: SessionServiceT;
-  settings: SettingsServiceT;
-  inviteCode: InviteCodeServiceT;
+	thread: ThreadService;
+	message: MessageServiceT;
+	run: RunServiceT;
+	agent: AgentServiceT;
+	tool: ToolServiceT;
+	queue: QueueServiceT;
+	user: UserServiceT;
+	session: SessionServiceT;
+	settings: SettingsServiceT;
+	inviteCode: InviteCodeServiceT;
 }
 
 export function configureServices(db: PostgresJsDatabase): ConfiguredServices {
-  return {
-    thread: createThreadService(db),
-    message: createMessageService(db),
-    run: createRunService(db),
-    agent: createAgentService(db),
-    tool: createToolService(db),
-    queue: createQueueService(db),
-    user: createUserService(db),
-    session: createSessionService(db),
-    settings: createSettingsService(db),
-    inviteCode: createInviteCodeService(db),
-  };
+	return {
+		thread: createThreadService(db),
+		message: createMessageService(db),
+		run: createRunService(db),
+		agent: createAgentService(db),
+		tool: createToolService(db),
+		queue: createQueueService(db),
+		user: createUserService(db),
+		session: createSessionService(db),
+		settings: createSettingsService(db),
+		inviteCode: createInviteCodeService(db),
+	};
 }

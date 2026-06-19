@@ -1,4 +1,14 @@
-export type { Tool, ToolDefinition, ToolResult } from "./types/tool";
-export { BaseTool } from "./tools/base-tool";
-export { WebSearch } from "./tools/web-search";
 export { toolRegistry } from "./registry";
+export { BaseTool } from "./tools/base-tool";
+export { Calculator } from "./tools/calculator";
+export { CodeExecution } from "./tools/code-execution";
+export { FileReadWrite } from "./tools/file-read-write";
+export { ImageGeneration } from "./tools/image-generation";
+export { MemoryVector } from "./tools/memory-vector";
+export { ShellCommand } from "./tools/shell-command";
+export { SqlQuery } from "./tools/sql-query";
+export { TimeDate } from "./tools/time-date";
+export { Weather } from "./tools/weather";
+export { WebScraping } from "./tools/web-scraping";
+export { WebSearch } from "./tools/web-search";
+export type { Tool, ToolDefinition, ToolResult } from "./types/tool";
